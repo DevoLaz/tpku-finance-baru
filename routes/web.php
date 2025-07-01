@@ -38,8 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('aset-tetap', AsetTetapController::class);
     Route::resource('transaksi', TransactionController::class)->except(['edit', 'update']);
     Route::resource('beban', BebanController::class)->except(['show', 'edit', 'update']);
-    Route::resource('karyawan', KaryawanController::class); // <-- Rute untuk Manajemen Karyawan
-    Route::resource('penggajian', GajiController::class)->except(['show']);
+    Route::resource('karyawan', KaryawanController::class);
 
     // --- MODUL LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->group(function () {
@@ -48,10 +47,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/laba-rugi', [LaporanController::class, 'labaRugi'])->name('laba_rugi');
         Route::get('/neraca', [LaporanController::class, 'neraca'])->name('neraca');
         Route::get('/analisis-penjualan', [LaporanController::class, 'analisisPenjualan'])->name('penjualan');
-        Route::get('penggajian/{gaji}', [GajiController::class, 'show'])->name('slip_gaji');
-        Route::get('/laporan/neraca', [LaporanController::class, 'neraca'])->name('laporan.neraca');
         
         // Rute untuk Penggajian ada di dalam grup laporan
-        Route::resource('penggajian', GajiController::class); 
+        // URL akan menjadi: /laporan/penggajian, /laporan/penggajian/create, dll.
+        Route::resource('penggajian', GajiController::class)->except(['show']);
+        
+        // Rute untuk Slip Gaji dibuat spesifik agar tidak bentrok
+        Route::get('penggajian/{gaji}', [GajiController::class, 'show'])->name('slip_gaji');
     });
 });

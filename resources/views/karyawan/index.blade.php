@@ -39,9 +39,9 @@
                     <tbody>
                         @forelse ($karyawans as $karyawan)
                             <tr class="border-b hover:bg-gray-50">
-                                <td class="py-3 px-4 font-medium">{{ $karyawan->nama }}</td>
-                                <td class="py-3 px-4 text-gray-600">{{ $karyawan->posisi }}</td>
-                                <td class="py-3 px-4 text-gray-600">{{ \Carbon\Carbon::parse($karyawan->tanggal_masuk)->isoFormat('DD MMMM YYYY') }}</td>
+                                <td class="py-3 px-4 font-medium">{{ $karyawan->nama_lengkap }}</td>
+                                <td class="py-3 px-4 text-gray-600">{{ $karyawan->jabatan }}</td>
+                                <td class="py-3 px-4 text-gray-600">{{ \Carbon\Carbon::parse($karyawan->tanggal_bergabung)->isoFormat('DD MMMM YYYY') }}</td>
                                 <td class="py-3 px-4 text-center">
                                     <div class="flex justify-center items-center gap-2">
                                         <a href="{{ route('karyawan.edit', $karyawan->id) }}" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100">

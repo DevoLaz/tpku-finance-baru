@@ -30,45 +30,66 @@ class GajiController extends Controller
         return view('gaji.create', compact('karyawan'));
     }
 
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'karyawan_id' => 'required|exists:karyawans,id',
-            'periode' => 'required|date_format:Y-m',
-            'gaji_pokok' => 'required|numeric|min:0',
-            'tunjangan_jabatan' => 'nullable|numeric|min:0',
-            'tunjangan_transport' => 'nullable|numeric|min:0',
-            'bonus' => 'nullable|numeric|min:0',
-            'pph21' => 'nullable|numeric|min:0',
-            'bpjs' => 'nullable|numeric|min:0',
-            'potongan_lain' => 'nullable|numeric|min:0',
-        ]);
+   public function store(Request $request)
+{
+    // 1. Lakukan validasi seperti biasa
+    $validatedData = $request->validate([
+        'karyawan_id' => 'required|exists:karyawans,id',
+        'periode' => 'required|date_format:Y-m',
+        'gaji_pokok' => 'required|numeric|min:0',
+        'tunjangan_jabatan' => 'nullable|numeric|min:0',
+        'tunjangan_transport' => 'nullable|numeric|min:0',
+        'bonus' => 'nullable|numeric|min:0',
+        'pph21' => 'nullable|numeric|min:0',
+        'bpjs' => 'nullable|numeric|min:0',
+        'potongan_lain' => 'nullable|numeric|min:0',
+    ]);
 
-        // Hitung total di backend agar aman
-        $total_pendapatan = ($request->gaji_pokok ?? 0) + ($request->tunjangan_jabatan ?? 0) + ($request->tunjangan_transport ?? 0) + ($request->bonus ?? 0);
-        $total_potongan = ($request->pph21 ?? 0) + ($request->bpjs ?? 0) + ($request->potongan_lain ?? 0);
-        $gaji_bersih = $total_pendapatan - $total_potongan;
+    // 2. INI BAGIAN PERBAIKANNYA
+    // Kita pastikan semua input opsional yang kosong (null) diubah menjadi 0
+    $gaji_pokok = $validatedData['gaji_pokok'] ?? 0;
+    $tunjangan_jabatan = $validatedData['tunjangan_jabatan'] ?? 0;
+    $tunjangan_transport = $validatedData['tunjangan_transport'] ?? 0;
+    $bonus = $validatedData['bonus'] ?? 0;
+    $pph21 = $validatedData['pph21'] ?? 0;
+    $bpjs = $validatedData['bpjs'] ?? 0;
+    $potongan_lain = $validatedData['potongan_lain'] ?? 0;
 
-        $validatedData['total_pendapatan'] = $total_pendapatan;
-        $validatedData['total_potongan'] = $total_potongan;
-        $validatedData['gaji_bersih'] = $gaji_bersih;
+    // 3. Hitung total di backend agar aman menggunakan nilai yang sudah bersih
+    $total_pendapatan = $gaji_pokok + $tunjangan_jabatan + $tunjangan_transport + $bonus;
+    $total_potongan = $pph21 + $bpjs + $potongan_lain;
+    $gaji_bersih = $total_pendapatan - $total_potongan;
 
-        // Simpan data gaji
-        $gaji = Gaji::create($validatedData);
-        $karyawan = Karyawan::find($gaji->karyawan_id);
+    // 4. Siapkan data final untuk disimpan
+    $dataToStore = array_merge($validatedData, [
+        'gaji_pokok' => $gaji_pokok,
+        'tunjangan_jabatan' => $tunjangan_jabatan,
+        'tunjangan_transport' => $tunjangan_transport,
+        'bonus' => $bonus,
+        'pph21' => $pph21,
+        'bpjs' => $bpjs,
+        'potongan_lain' => $potongan_lain,
+        'total_pendapatan' => $total_pendapatan,
+        'total_potongan' => $total_potongan,
+        'gaji_bersih' => $gaji_bersih,
+    ]);
 
-        // Catat sebagai pengeluaran di buku kas
-        ArusKas::create([
-            'tanggal' => Carbon::now(),
-            'jumlah' => $gaji->gaji_bersih * -1,
-            'tipe' => 'keluar',
-            'deskripsi' => "Pembayaran Gaji {$karyawan->nama_lengkap} - Periode " . Carbon::parse($gaji->periode)->isoFormat('MMMM Y'),
-            'referensi_id' => $gaji->id,
-            'referensi_tipe' => Gaji::class,
-        ]);
+    // 5. Simpan data gaji yang sudah bersih
+    $gaji = Gaji::create($dataToStore);
+    $karyawan = Karyawan::find($gaji->karyawan_id);
 
-        return redirect()->route('laporan.penggajian.index')->with('success', 'Pembayaran gaji berhasil dicatat.');
-    }
+    // 6. Catat sebagai pengeluaran di buku kas
+    ArusKas::create([
+        'tanggal' => Carbon::now(),
+        'jumlah' => $gaji->gaji_bersih * -1,
+        'tipe' => 'keluar',
+        'deskripsi' => "Pembayaran Gaji {$karyawan->nama_lengkap} - Periode " . Carbon::parse($gaji->periode)->isoFormat('MMMM Y'),
+        'referensi_id' => $gaji->id,
+        'referensi_tipe' => Gaji::class,
+    ]);
+
+    return redirect()->route('laporan.penggajian.index')->with('success', 'Pembayaran gaji berhasil dicatat.');
+}
 
     // Method baru untuk menampilkan slip gaji
     public function show(Gaji $gaji)
