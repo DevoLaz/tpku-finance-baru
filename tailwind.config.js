@@ -1,3 +1,4 @@
+// devolaz/tpku-finance-baru/tpku-finance-baru-73477388ecef21eb63a4f0a3d263b58c43c6f7ce/tailwind.config.js
 import defaultTheme from 'tailwindcss/defaultTheme';
 import forms from '@tailwindcss/forms';
 
@@ -7,6 +8,7 @@ export default {
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
+        './node_modules/alpinejs/**/*.js', // Pastikan baris ini ada atau yang serupa
     ],
 
     theme: {

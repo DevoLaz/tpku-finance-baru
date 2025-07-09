@@ -1,8 +1,5 @@
 <x-app-layout>
-    {{-- Kita tidak butuh @extends atau @section('content') lagi --}}
-    {{-- Semua konten halaman langsung ditaruh di sini --}}
-
-    <div class="p-8"> {{-- Kita tambahkan padding di sini yang tadinya ada di <main> --}}
+    <div class="p-8">
         
         @if (session('success'))
             <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg shadow-md" role="alert">
@@ -16,7 +13,6 @@
             </div>
         @endif
 
-        <!-- Header -->
         <div class="bg-gradient-to-r from-[#173720] to-[#2a5a37] rounded-lg p-6 mb-6 shadow-lg">
             <div class="flex justify-between items-center">
                 <div>
@@ -33,7 +29,6 @@
             </div>
         </div>
 
-        <!-- Filter Section -->
         <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
             <form method="GET" action="{{ route('pengadaan.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
@@ -67,7 +62,6 @@
             </form>
         </div>
 
-        <!-- Summary Cards -->
         @if($totalTransaksi > 0)
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
@@ -89,35 +83,65 @@
         </div>
         @endif
 
-        <!-- Table Section -->
         <div class="bg-white rounded-lg shadow-sm">
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-[#173720] text-white">
                         <tr>
-                            <th class="py-4 px-4 text-left text-sm font-bold uppercase">Tanggal</th>
-                            <th class="py-4 px-4 text-left text-sm font-bold uppercase">No Invoice</th>
-                            <th class="py-4 px-4 text-left text-sm font-bold uppercase">Barang</th>
+                            <th class="py-4 px-4 text-left text-sm font-bold uppercase w-1/6">Tanggal</th>
+                            <th class="py-4 px-4 text-left text-sm font-bold uppercase w-1/6">No Invoice</th>
                             <th class="py-4 px-4 text-left text-sm font-bold uppercase">Supplier</th>
-                            <th class="py-4 px-4 text-center text-sm font-bold uppercase">Jumlah</th>
-                            <th class="py-4 px-4 text-right text-sm font-bold uppercase">Harga Beli</th>
-                            <th class="py-4 px-4 text-right text-sm font-bold uppercase">Total</th>
+                            <th class="py-4 px-4 text-right text-sm font-bold uppercase w-1/6">Total Pembelian</th>
+                            <th class="py-4 px-4 text-center text-sm font-bold uppercase w-16">Detail</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($pengadaans as $item)
-                            <tr class="border-b hover:bg-gray-50">
-                                <td class="py-4 px-4">{{ \Carbon\Carbon::parse($item->tanggal_pembelian)->format('d M Y') }}</td>
-                                <td class="py-4 px-4">{{ $item->no_invoice }}</td>
-                                <td class="py-4 px-4">{{ $item->barang->nama ?? 'N/A' }}</td>
-                                <td class="py-4 px-4">{{ $item->supplier->nama_supplier ?? 'N/A' }}</td>
-                                <td class="py-4 px-4 text-center">{{ number_format($item->jumlah_masuk, 0, ',', '.') }}</td>
-                                <td class="py-4 px-4 text-right">Rp {{ number_format($item->harga_beli, 0, ',', '.') }}</td>
-                                <td class="py-4 px-4 text-right font-bold text-green-600">Rp {{ number_format($item->total_harga, 0, ',', '.') }}</td>
-                            </tr>
+                        @forelse ($pengadaansByInvoice as $invoiceNumber => $items)
+                            {{-- Setiap invoice akan memiliki Alpine.js state-nya sendiri --}}
+                            <tbody x-data="{ open: false }">
+                                {{-- Baris utama yang selalu terlihat dan bisa diklik --}}
+                                <tr class="border-b hover:bg-gray-50 cursor-pointer" @click="open = !open">
+                                    <td class="py-4 px-4">{{ \Carbon\Carbon::parse($items->first()->tanggal_pembelian)->format('d M Y') }}</td>
+                                    <td class="py-4 px-4 font-mono">{{ $invoiceNumber }}</td>
+                                    <td class="py-4 px-4">{{ $items->first()->supplier->nama_supplier ?? 'N/A' }}</td>
+                                    <td class="py-4 px-4 text-right font-bold text-green-600">Rp {{ number_format($items->sum('total_harga'), 0, ',', '.') }}</td>
+                                    <td class="py-4 px-4 text-center">
+                                        <button class="text-gray-500">
+                                            <i data-lucide="chevron-down" class="w-5 h-5 transition-transform" :class="{'rotate-180': open}"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {{-- Baris dropdown yang berisi detail barang --}}
+                                <tr x-show="open" x-transition class="bg-gray-50">
+                                    <td colspan="5" class="p-0">
+                                        <div class="p-4">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-gray-200">
+                                                    <tr>
+                                                        <th class="py-2 px-3 text-left font-semibold">Barang</th>
+                                                        <th class="py-2 px-3 text-center font-semibold">Jumlah</th>
+                                                        <th class="py-2 px-3 text-right font-semibold">Harga Beli</th>
+                                                        <th class="py-2 px-3 text-right font-semibold">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach ($items as $item)
+                                                        <tr class="border-b border-gray-200 last:border-b-0">
+                                                            <td class="py-3 px-3">{{ $item->barang->nama ?? 'N/A' }}</td>
+                                                            <td class="py-3 px-3 text-center">{{ number_format($item->jumlah_masuk, 0, ',', '.') }}</td>
+                                                            <td class="py-3 px-3 text-right">Rp {{ number_format($item->harga_beli, 0, ',', '.') }}</td>
+                                                            <td class="py-3 px-3 text-right font-medium">Rp {{ number_format($item->total_harga, 0, ',', '.') }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-12">
+                                <td colspan="5" class="text-center py-12">
                                     <p class="text-gray-500">Belum ada riwayat pengadaan</p>
                                 </td>
                             </tr>
@@ -125,13 +149,6 @@
                     </tbody>
                 </table>
             </div>
-
-            <!-- Pagination -->
-            @if($pengadaans->hasPages())
-                <div class="p-6 border-t border-gray-200">
-                    {{ $pengadaans->appends(request()->query())->links() }}
-                </div>
-            @endif
         </div>
 
     </div>

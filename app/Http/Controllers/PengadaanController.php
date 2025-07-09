@@ -7,18 +7,16 @@ use App\Models\Pengadaan;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Models\ArusKas;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class PengadaanController extends Controller
 {
-    /**
-     * Menampilkan halaman utama (Riwayat Pengadaan) dengan data dan filter.
-     */
+    // Method index() tidak perlu diubah, biarkan seperti sebelumnya.
     public function index(Request $request)
     {
-        // Query dasar untuk mengambil data pengadaan beserta relasinya
         $query = Pengadaan::with(['barang', 'supplier']);
 
-        // Terapkan filter berdasarkan input dari form
         if ($request->filled('dari') && $request->filled('sampai')) {
             $query->whereBetween('tanggal_pembelian', [$request->dari, $request->sampai]);
         }
@@ -26,22 +24,21 @@ class PengadaanController extends Controller
             $query->where('barang_id', $request->barang_id);
         }
 
-        // --- Logika untuk Summary Cards ---
-        // Kita hitung totalnya dari data yang sudah difilter, SEBELUM di-paginate
-        $filteredPengadaans = $query->get();
+        $filteredPengadaans = $query->latest('tanggal_pembelian')->get();
+
         $totalPengeluaran = $filteredPengadaans->sum('total_harga');
         $totalItemMasuk = $filteredPengadaans->sum('jumlah_masuk');
-        $totalTransaksi = $filteredPengadaans->count();
+        $totalTransaksi = $filteredPengadaans->unique('no_invoice')->count();
         $rataRataPerTransaksi = ($totalTransaksi > 0) ? $totalPengeluaran / $totalTransaksi : 0;
 
-        // Ambil data untuk ditampilkan di tabel dengan pagination
-        $pengadaans = $query->latest('tanggal_pembelian')->paginate(10)->withQueryString();
-
-        // Ambil data untuk dropdown filter
+        $pengadaansByInvoice = $filteredPengadaans->groupBy('no_invoice');
         $barangs = Barang::orderBy('nama')->get();
+        
+        // Menambahkan variabel pengadaans untuk pagination yang mungkin masih terpakai di view lain.
+        $pengadaans = Pengadaan::latest()->paginate(10);
 
-        // Kirim semua data yang sudah diolah ke view
         return view('pengadaan.index', compact(
+            'pengadaansByInvoice',
             'pengadaans',
             'barangs',
             'totalPengeluaran',
@@ -50,6 +47,7 @@ class PengadaanController extends Controller
             'rataRataPerTransaksi'
         ));
     }
+
 
     /**
      * Menampilkan form untuk membuat data pengadaan baru.
@@ -65,47 +63,76 @@ class PengadaanController extends Controller
 
     /**
      * Menyimpan data pengadaan baru dari form ke database.
+     * Metode ini diubah untuk menangani banyak item.
      */
     public function store(Request $request)
-{
-    // 1. Validasi data (tanpa harga, karena diambil dari DB)
-    $validatedData = $request->validate([
-        'barang_id' => 'required|exists:barangs,id',
-        'supplier_id' => 'required|exists:suppliers,id',
-        'tanggal_pembelian' => 'required|date',
-        'no_invoice' => 'required|string|unique:pengadaans,no_invoice',
-        'jumlah_masuk' => 'required|integer|min:1',
-        'keterangan' => 'nullable|string',
-    ]);
+    {
+        // 1. Validasi data header dan array item
+        $validatedData = $request->validate([
+            'supplier_id' => 'required|exists:suppliers,id',
+            'tanggal_pembelian' => 'required|date',
+            'no_invoice' => 'required|string|unique:pengadaans,no_invoice',
+            'keterangan' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.barang_id' => 'required|exists:barangs,id',
+            'items.*.jumlah_masuk' => 'required|integer|min:1',
+        ]);
 
-    // 2. Ambil harga asli dari database
-    $barang = Barang::findOrFail($validatedData['barang_id']);
-    $harga_asli = $barang->harga_jual; 
+        DB::beginTransaction();
+        try {
+            $grandTotal = 0;
+            $firstPengadaanId = null;
 
-    // 3. Hitung total harga di sisi SERVER
-    $total_harga_server = $validatedData['jumlah_masuk'] * $harga_asli;
+            // 2. Loop melalui setiap item yang dikirim
+            foreach ($validatedData['items'] as $itemData) {
+                $barang = Barang::find($itemData['barang_id']);
+                $hargaBeli = $barang->harga_jual; // Ambil harga dari DB agar aman
+                $totalHargaItem = $itemData['jumlah_masuk'] * $hargaBeli;
+                $grandTotal += $totalHargaItem;
 
-    // 4. Tambahkan harga dan total_harga yang aman
-    $validatedData['harga_beli'] = $harga_asli;
-    $validatedData['total_harga'] = $total_harga_server;
+                // 3. Buat record Pengadaan baru untuk setiap item
+                $pengadaan = Pengadaan::create([
+                    'supplier_id' => $validatedData['supplier_id'],
+                    'tanggal_pembelian' => $validatedData['tanggal_pembelian'],
+                    'no_invoice' => $validatedData['no_invoice'],
+                    'keterangan' => $validatedData['keterangan'],
+                    'barang_id' => $itemData['barang_id'],
+                    'jumlah_masuk' => $itemData['jumlah_masuk'],
+                    'harga_beli' => $hargaBeli,
+                    'total_harga' => $totalHargaItem,
+                ]);
 
-    // 5. Simpan data pengadaan
-    $pengadaan = Pengadaan::create($validatedData);
+                // Simpan ID dari item pertama yang dibuat untuk referensi ArusKas
+                if (is_null($firstPengadaanId)) {
+                    $firstPengadaanId = $pengadaan->id;
+                }
+            }
 
-    // 6. Catat pengeluaran di buku kas
-    ArusKas::create([
-        'tanggal' => $pengadaan->tanggal_pembelian,
-        'jumlah' => $pengadaan->total_harga * -1,
-        'tipe' => 'keluar',
-        'deskripsi' => "Pembelian barang: {$barang->nama} (Inv: #{$pengadaan->no_invoice})",
-        'referensi_id' => $pengadaan->id,
-        'referensi_tipe' => Pengadaan::class,
-    ]);
+            // 4. Catat SATU KALI sebagai pengeluaran di buku kas
+            if ($grandTotal > 0) {
+                ArusKas::create([
+                    'tanggal' => $validatedData['tanggal_pembelian'],
+                    'jumlah' => $grandTotal * -1, // Total dari semua item
+                    'tipe' => 'keluar',
+                    'deskripsi' => "Pembelian Barang (Invoice: #{$validatedData['no_invoice']})",
+                    'referensi_id' => $firstPengadaanId, // Gunakan ID item pertama sebagai referensi
+                    'referensi_tipe' => Pengadaan::class,
+                ]);
+            }
 
-    return redirect()->route('pengadaan.index')->with('success', 'Pengadaan berhasil & kas telah dicatat.');
-}
+            // 5. Jika semua berhasil, commit transaksi
+            DB::commit();
 
-    // Biarkan method lain kosong dulu, kita akan buat nanti jika perlu
+            return redirect()->route('pengadaan.index')->with('success', 'Pengadaan dengan ' . count($validatedData['items']) . ' item berhasil dicatat.');
+
+        } catch (Throwable $e) {
+            // 6. Jika ada error, batalkan semua perubahan
+            DB::rollBack();
+            return back()->withInput()->withErrors(['error' => 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage()]);
+        }
+    }
+
+    // Method lain tetap sama
     public function show(Pengadaan $pengadaan) {}
     public function edit(Pengadaan $pengadaan) {}
     public function update(Request $request, Pengadaan $pengadaan) {}
