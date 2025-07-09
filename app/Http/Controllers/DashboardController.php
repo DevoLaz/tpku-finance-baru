@@ -20,25 +20,43 @@ class DashboardController extends Controller
      */
     public function index()
     {
-        // Set timezone ke Asia/Jakarta
+        // Set timezone ke Asia/Jakarta dan dapatkan tanggal hari ini & bulan ini
         $now = Carbon::now('Asia/Jakarta');
+        $today = $now->copy()->toDateString();
+        $startOfMonth = $now->copy()->startOfMonth();
+        $endOfMonth = $now->copy()->endOfMonth();
         
         // ===== DATA UNTUK KARTU METRIK UTAMA =====
         $totalKas = ArusKas::sum('jumlah');
         $totalAset = AsetTetap::where('masa_manfaat', '>', 0)->get()->sum('nilai_buku');
         $totalKaryawan = Karyawan::where('aktif', true)->count();
 
-        // Laba Rugi Bersih (Bulan Berjalan)
-        $awalBulanIni = $now->copy()->startOfMonth();
-        $akhirBulanIni = $now->copy()->endOfMonth();
-
-        $pendapatanBulanIni = Transaction::whereBetween('tanggal_transaksi', [$awalBulanIni, $akhirBulanIni])->sum('total_penjualan');
-        $pengeluaranBulanIni = ArusKas::where('tipe', 'keluar')->whereBetween('tanggal', [$awalBulanIni, $akhirBulanIni])->sum('jumlah') * -1;
-        $labaRugiBulanIni = $pendapatanBulanIni - $pengeluaranBulanIni;
+        // Pendapatan & Pengeluaran (Bulan Berjalan)
+        $pendapatanBulanIni = Transaction::whereBetween('tanggal_transaksi', [$startOfMonth, $endOfMonth])->sum('total_penjualan');
+        $pengeluaranGaji = Gaji::whereBetween('created_at', [$startOfMonth, $endOfMonth])->sum('gaji_bersih');
+        $pengeluaranPengadaan = Pengadaan::whereBetween('tanggal_pembelian', [$startOfMonth, $endOfMonth])->sum('total_harga');
+        $pengeluaranBeban = Beban::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->sum('jumlah');
+        $totalPengeluaranBulanIni = $pengeluaranGaji + $pengeluaranPengadaan + $pengeluaranBeban;
         
+        $labaRugiBulanIni = $pendapatanBulanIni - $totalPengeluaranBulanIni;
+        
+        // ===== DATA UNTUK WIDGET DINAMIS =====
+
+        // 1. Margin Laba Bersih (Net Profit Margin)
+        // Rumus: (Laba Bersih / Pendapatan) * 100%
+        $marjinLabaBersih = ($pendapatanBulanIni > 0) ? ($labaRugiBulanIni / $pendapatanBulanIni) * 100 : 0;
+
+        // 2. Efisiensi Operasional
+        // Efisiensi = (Total Pengeluaran / Total Pendapatan) * 100%
+        $efisiensiOperasional = ($pendapatanBulanIni > 0) ? ($totalPengeluaranBulanIni / $pendapatanBulanIni) * 100 : 0;
+
+        // 3. Aktivitas Hari Ini
+        $aktivitasMasukHariIni = ArusKas::where('tipe', 'masuk')->whereDate('tanggal', $today)->count();
+        $aktivitasKeluarHariIni = ArusKas::where('tipe', 'keluar')->whereDate('tanggal', $today)->count();
+
         // ===== DATA UNTUK GRAFIK =====
 
-        // 1. Grafik Arus Kas (6 Bulan Terakhir)
+        // 1. Grafik Arus Kas Bulanan (6 Bulan Terakhir)
         $dataArusKas = ArusKas::select(
                 DB::raw("DATE_FORMAT(tanggal, '%Y-%m') as periode"),
                 DB::raw("SUM(CASE WHEN tipe = 'masuk' THEN jumlah ELSE 0 END) as kas_masuk"),
@@ -58,23 +76,28 @@ class DashboardController extends Controller
         });
 
         // 2. Grafik Komposisi Pengeluaran (Bulan Berjalan)
-        $gaji = Gaji::whereBetween('created_at', [$awalBulanIni, $akhirBulanIni])->sum('gaji_bersih');
-        $pengadaan = Pengadaan::whereBetween('tanggal_pembelian', [$awalBulanIni, $akhirBulanIni])->sum('total_harga');
-        $beban = Beban::whereBetween('tanggal', [$awalBulanIni, $akhirBulanIni])->sum('jumlah');
-
         $pengeluaranChart = [
             'labels' => ['Gaji', 'Pengadaan', 'Beban Operasional'],
-            'data' => [$gaji, $pengadaan, $beban],
+            'data' => [$pengeluaranGaji, $pengeluaranPengadaan, $pengeluaranBeban],
         ];
 
         // ===== DATA UNTUK TABEL TRANSAKSI TERBARU =====
         $transaksiTerbaru = ArusKas::latest()->take(5)->get();
 
         return view('dashboard', [
+            // Data Kartu Utama
             'totalKas' => $totalKas,
             'totalAset' => $totalAset,
             'labaRugiBulanIni' => $labaRugiBulanIni,
             'totalKaryawan' => $totalKaryawan,
+            
+            // Data Widget Dinamis
+            'marjinLabaBersih' => $marjinLabaBersih,
+            'efisiensiOperasional' => $efisiensiOperasional,
+            'aktivitasMasukHariIni' => $aktivitasMasukHariIni,
+            'aktivitasKeluarHariIni' => $aktivitasKeluarHariIni,
+
+            // Data Grafik & Tabel
             'arusKasChart' => $arusKasChart,
             'pengeluaranChart' => $pengeluaranChart,
             'transaksiTerbaru' => $transaksiTerbaru,

@@ -5,34 +5,22 @@ namespace App\Http\Controllers;
 use App\Models\AsetTetap;
 use App\Models\ArusKas;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AsetTetapController extends Controller
 {
-    /**
-     * Menampilkan daftar semua aset.
-     */
     public function index()
     {
-        // Mengambil semua data dari model AsetTetap, diurutkan dari yang terbaru
-        $asets = AsetTetap::latest()->paginate(10);
-        
-        // Mengirim data tersebut ke view 'aset-tetap.index'
-        return view('aset-tetap.index', compact('asets'));
+        $asetTetaps = AsetTetap::latest('tanggal_perolehan')->paginate(10);
+        return view('aset-tetap.index', compact('asetTetaps'));
     }
 
-    /**
-     * Menampilkan form tambah aset
-     */
     public function create()
     {
-        // Membuat variabel $aset kosong agar tidak error di form
-        $aset = new AsetTetap();
-        return view('aset-tetap.create', compact('aset'));
+        return view('aset-tetap.create');
     }
 
-    /**
-     * Menyimpan aset baru
-     */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -41,39 +29,63 @@ class AsetTetapController extends Controller
             'tanggal_perolehan' => 'required|date',
             'harga_perolehan' => 'required|numeric|min:0',
             'masa_manfaat' => 'required|integer|min:0',
-            'nilai_residu' => 'nullable|numeric|min:0',
+            'nilai_residu' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
+            'bukti' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
-        $aset = AsetTetap::create($validatedData);
+        DB::beginTransaction();
+        try {
+            $buktiPath = null;
+            if ($request->hasFile('bukti')) {
+                $buktiPath = $request->file('bukti')->store('public/bukti_aset_tetap');
+            }
+            
+            $validatedData['bukti'] = $buktiPath;
 
-        if (str_contains(strtolower($aset->nama_aset), 'modal') || str_contains(strtolower($aset->nama_aset), 'kas')) {
-            ArusKas::create([
-                'tanggal' => $aset->tanggal_perolehan,
-                'jumlah' => $aset->harga_perolehan,
-                'tipe' => 'masuk',
-                'deskripsi' => 'Setoran Modal: ' . $aset->nama_aset,
-                'referensi_id' => $aset->id,
-                'referensi_tipe' => AsetTetap::class,
-            ]);
+            $asetTetap = AsetTetap::create($validatedData);
+
+            // PERBAIKAN LOGIKA: Cek apakah ini setoran modal atau pembelian aset
+            if (str_contains(strtolower($request->kategori), 'kas') || str_contains(strtolower($request->nama_aset), 'modal')) {
+                 // Jika ini adalah modal, catat sebagai kas masuk
+                 ArusKas::create([
+                    'tanggal' => $request->tanggal_perolehan,
+                    'keterangan' => 'Setoran Modal: ' . $request->nama_aset,
+                    'deskripsi' => $request->deskripsi ?: 'Setoran modal awal atau tambahan',
+                    'jumlah' => $request->harga_perolehan, // Nilai positif
+                    'tipe' => 'masuk', // Tipe: MASUK
+                    'kategori' => 'Pendanaan',
+                    'referensi_id' => $asetTetap->id,
+                    'referensi_tipe' => AsetTetap::class,
+                ]);
+            } else if ($request->harga_perolehan > 0) {
+                // Jika ini adalah pembelian aset, catat sebagai kas keluar
+                ArusKas::create([
+                    'tanggal' => $request->tanggal_perolehan,
+                    'keterangan' => 'Pembelian Aset: ' . $request->nama_aset,
+                    'deskripsi' => $request->deskripsi ?: 'Pembelian aset ' . $request->nama_aset,
+                    'jumlah' => $request->harga_perolehan, // Nilai tetap positif
+                    'tipe' => 'keluar', // Tipe: KELUAR
+                    'kategori' => 'Investasi',
+                    'referensi_id' => $asetTetap->id,
+                    'referensi_tipe' => AsetTetap::class,
+                ]);
+            }
+
+
+            DB::commit();
+            return redirect()->route('aset-tetap.index')->with('success', 'Aset tetap berhasil ditambahkan.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if (isset($buktiPath) && $buktiPath) {
+                Storage::delete($buktiPath);
+            }
+            // Mengembalikan pesan error yang lebih jelas ke view
+            return back()->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage())->withInput();
         }
-
-        return redirect()->route('aset-tetap.index')->with('success', 'Aset baru berhasil ditambahkan.');
     }
 
-    // Biarkan method lain kosong untuk sekarang
-    public function show(AsetTetap $aset_tetap) {}
-
-
-
-   public function edit(AsetTetap $aset_tetap)
-    {
-        // Redirect ke halaman index karena kita akan edit via modal
-        return redirect()->route('aset-tetap.index');
-    }
-
-
-     public function update(Request $request, AsetTetap $aset_tetap)
+    public function update(Request $request, AsetTetap $asetTetap)
     {
         $validatedData = $request->validate([
             'nama_aset' => 'required|string|max:255',
@@ -81,14 +93,41 @@ class AsetTetapController extends Controller
             'tanggal_perolehan' => 'required|date',
             'harga_perolehan' => 'required|numeric|min:0',
             'masa_manfaat' => 'required|integer|min:0',
-            'nilai_residu' => 'nullable|numeric|min:0',
+            'nilai_residu' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
+            'bukti' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
-        $aset_tetap->update($validatedData);
+        if ($request->hasFile('bukti')) {
+            if ($asetTetap->bukti) {
+                Storage::delete($asetTetap->bukti);
+            }
+            $validatedData['bukti'] = $request->file('bukti')->store('public/bukti_aset_tetap');
+        }
 
-        return redirect()->route('aset-tetap.index')->with('success', 'Aset berhasil diperbarui.');
+        $asetTetap->update($validatedData);
+
+        return redirect()->route('aset-tetap.index')->with('success', 'Aset tetap berhasil diperbarui.');
     }
-    
-    public function destroy(AsetTetap $aset_tetap) {}
+
+    public function destroy(AsetTetap $asetTetap)
+    {
+        DB::beginTransaction();
+        try {
+            if ($asetTetap->bukti) {
+                Storage::delete($asetTetap->bukti);
+            }
+            
+            ArusKas::where('referensi_tipe', AsetTetap::class)
+                   ->where('referensi_id', $asetTetap->id)
+                   ->delete();
+
+            $asetTetap->delete();
+            DB::commit();
+            return redirect()->route('aset-tetap.index')->with('success', 'Aset tetap berhasil dihapus.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menghapus aset: ' . $e->getMessage());
+        }
+    }
 }

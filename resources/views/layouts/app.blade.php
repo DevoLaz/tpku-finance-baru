@@ -32,8 +32,38 @@
                 {{ $slot }}
             </main>
         </div>
+<!-- Modal untuk menampilkan Bukti -->
+<div id="buktiModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex justify-center items-center" onclick="closeModal()">
+    <div class="bg-white p-4 rounded-lg max-w-3xl max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="font-semibold text-lg">Bukti Transaksi</h2>
+            <button onclick="closeModal()" class="text-black text-2xl">&times;</button>
+        </div>
+        <img id="buktiImage" src="" alt="Bukti Transaksi" class="w-full rounded-md">
+    </div>
+</div>
 
-        <!-- Stack script tambahan dari layout lamamu -->
-        @stack('scripts')
+@stack('scripts')
+<script>
+    const modal = document.getElementById('buktiModal');
+    const modalImage = document.getElementById('buktiImage');
+
+    function showModal(imageUrl) {
+        modalImage.src = imageUrl;
+        modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modalImage.src = ''; // Kosongkan src agar tidak menampilkan gambar lama sejenak
+    }
+
+    // Tambahkan event listener ke semua tombol yang mungkin ada
+    document.addEventListener('click', function (event) {
+        if (event.target && event.target.matches('button[data-img-url]')) {
+            showModal(event.target.dataset.imgUrl);
+        }
+    });
+</script>
     </body>
 </html>

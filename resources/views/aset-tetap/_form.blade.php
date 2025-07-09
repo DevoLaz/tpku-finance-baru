@@ -15,6 +15,7 @@
     {{-- Tanggal Perolehan --}}
     <div>
         <label for="tanggal_perolehan" class="block text-sm font-bold text-gray-700 mb-2">Tanggal Diperoleh *</label>
+        {{-- PERBAIKAN: Menggunakan name="tanggal_perolehan" --}}
         <input type="date" name="tanggal_perolehan" value="{{ old('tanggal_perolehan', isset($aset) ? optional($aset->tanggal_perolehan)->format('Y-m-d') : date('Y-m-d')) }}" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
     </div>
 
@@ -27,6 +28,7 @@
     {{-- Masa Manfaat --}}
     <div>
         <label for="masa_manfaat" class="block text-sm font-bold text-gray-700 mb-2">Masa Manfaat (Tahun) *</label>
+        {{-- PERBAIKAN: Menggunakan name="masa_manfaat" --}}
         <input type="number" name="masa_manfaat" value="{{ old('masa_manfaat', $aset->masa_manfaat ?? '0') }}" min="0" placeholder="Isi 0 jika Kas/Modal" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
     </div>
 
@@ -34,6 +36,13 @@
     <div>
         <label for="nilai_residu" class="block text-sm font-bold text-gray-700 mb-2">Nilai Residu/Sisa (Rp)</label>
         <input type="number" name="nilai_residu" value="{{ old('nilai_residu', $aset->nilai_residu ?? 0) }}" min="0" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+    </div>
+
+    {{-- Input Bukti --}}
+    <div class="md:col-span-2">
+        <label for="bukti" class="block text-sm font-bold text-gray-700 mb-2">Upload Bukti Pembelian (Opsional)</label>
+        <input type="file" name="bukti" id="bukti" class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+        @error('bukti') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
     </div>
 
     {{-- Deskripsi --}}

@@ -24,6 +24,7 @@ class Pengadaan extends Model
         'harga_beli',
         'total_harga',
         'keterangan',
+        'bukti', 
     ];
 
     // Relasi: Satu pengadaan hanya dimiliki oleh satu Barang

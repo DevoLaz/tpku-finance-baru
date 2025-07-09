@@ -9,11 +9,27 @@ class Beban extends Model
 {
     use HasFactory;
 
-    // Izinkan semua kolom ini diisi secara massal
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
-        'tanggal',
-        'nama_beban',
+        'nama',
         'jumlah',
-        'keterangan',
+        'tanggal',
+        'keterangan', // Menambahkan keterangan
+        'bukti',
+        'kategori_id', // Menambahkan kategori_id
     ];
+
+    /**
+     * Get the kategori that owns the Beban
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function kategori()
+    {
+        return $this->belongsTo(Kategori::class);
+    }
 }

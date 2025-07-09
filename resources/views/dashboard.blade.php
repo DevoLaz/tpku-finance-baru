@@ -230,45 +230,31 @@
             <div class="relative z-10">
                 <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                     <div class="flex-1 px-0">
-    @php
-        $now = now('Asia/Jakarta');
-        $hour = (int) $now->format('H');
-        $greeting = match(true) {
-            $hour >= 5 && $hour < 12 => 'Selamat Pagi',
-            $hour >= 12 && $hour < 15 => 'Selamat Siang', 
-            $hour >= 15 && $hour < 18 => 'Selamat Sore',
-            default => 'Selamat Malam'
-        };
-    @endphp
+                        @php
+                            $now = now('Asia/Jakarta');
+                            $hour = (int) $now->format('H');
+                            $greeting = match(true) {
+                                $hour >= 5 && $hour < 12 => 'Selamat Pagi',
+                                $hour >= 12 && $hour < 15 => 'Selamat Siang', 
+                                $hour >= 15 && $hour < 18 => 'Selamat Sore',
+                                default => 'Selamat Malam'
+                            };
+                        @endphp
 
-    <div class="flex items-start mb-2">
-        <h1 class="text-2xl md:text-4xl font-bold text-left">
-            {{ $greeting }}, {{ Auth::user()->name }}!
-        </h1>
-    </div>
+                        <div class="flex items-start mb-2">
+                            <h1 class="text-2xl md:text-4xl font-bold text-left">
+                                {{ $greeting }}, {{ Auth::user()->name }}!
+                            </h1>
+                        </div>
 
-    <p class="text-green-100 text-lg mb-4 text-left">
-        Dashboard analitik keuangan terkini untuk bisnis Anda
-    </p>
+                        <p class="text-green-100 text-lg mb-4 text-left">
+                            Dashboard analitik keuangan terkini untuk bisnis Anda
+                        </p>
 
-    <div class="flex items-center text-sm text-green-200 text-left space-x-1">
-        <span class="inline-block w-2 h-2 rounded-full bg-green-400"></span>
-        <span>Terakhir diperbarui: {{ now('Asia/Jakarta')->format('d M Y, H:i') }} WIB</span>
-    </div>
-</div>
-
-
-                    
-                    {{-- Quick Actions --}}
-                    <div class="flex flex-wrap gap-3">
-                        <!-- <button class="quick-action-btn text-white px-6 py-3 rounded-xl font-semibold relative z-10">
-                            <i data-lucide="plus" class="w-5 h-5 inline mr-2"></i>
-                            Transaksi Baru
-                        </button> -->
-                        <!-- <button class="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition-all">
-                            <i data-lucide="download" class="w-5 h-5 inline mr-2"></i>
-                            Export Data
-                        </button> -->
+                        <div class="flex items-center text-sm text-green-200 text-left space-x-1">
+                            <span class="inline-block w-2 h-2 rounded-full bg-green-400"></span>
+                            <span>Terakhir diperbarui: {{ now('Asia/Jakarta')->format('d M Y, H:i') }} WIB</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -287,7 +273,7 @@
                             </p>
                         </div>
                     </div>
-<div class="p-4 rounded-2xl text-white" style="background: linear-gradient(135deg, #818cf8, #4338ca);">
+                    <div class="p-4 rounded-2xl text-white" style="background: linear-gradient(135deg, #818cf8, #4338ca);">
                         <i data-lucide="wallet" class="w-8 h-8"></i>
                     </div>
                 </div>
@@ -305,8 +291,6 @@
                     <div class="p-4 rounded-2xl text-white" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
                         <i data-lucide="building-2" class="w-8 h-8"></i>
                     </div>
-                </div>
-                <div class="flex items-center justify-between">
                 </div>
             </div>
 
@@ -339,31 +323,35 @@
                         <i data-lucide="users" class="w-8 h-8"></i>
                     </div>
                 </div>
-                <div class="flex items-center justify-between">
-                </div>
             </div>
         </div>
 
         {{-- INSIGHTS CARDS --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {{-- PERUBAHAN: Dari Target Bulanan menjadi Margin Laba Bersih --}}
             <div class="insight-card rounded-2xl p-6">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="p-2 bg-green-100 rounded-lg">
-                        <i data-lucide="target" class="w-5 h-5 text-green-600"></i>
+                        <i data-lucide="percent" class="w-5 h-5 text-green-600"></i>
                     </div>
-                    <h4 class="font-semibold text-gray-800">Target Bulanan</h4>
+                    <h4 class="font-semibold text-gray-800">Margin Laba Bersih</h4>
                 </div>
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">Progress: 78%</p>
-                        <p class="text-lg font-bold text-green-700">Rp 450M / Rp 580M</p>
+                        <p class="text-sm text-gray-600">Bulan Ini</p>
+                        <p class="text-2xl font-bold {{ $marjinLabaBersih >= 0 ? 'text-green-700' : 'text-red-600' }}">
+                            {{ number_format($marjinLabaBersih, 1) }}%
+                        </p>
                     </div>
-                    <div class="w-16 h-16">
+                    <div class="w-16 h-16 relative flex items-center justify-center">
                         <svg class="progress-ring w-16 h-16">
                             <circle cx="32" cy="32" r="28" stroke="#e5e7eb" stroke-width="4" fill="transparent"/>
-                            <circle cx="32" cy="32" r="28" stroke="#22c55e" stroke-width="4" fill="transparent"
-                                    stroke-dasharray="175.93" stroke-dashoffset="38.5" class="progress-ring-circle"/>
+                            <circle cx="32" cy="32" r="28" stroke="{{ $marjinLabaBersih >= 0 ? '#22c55e' : '#ef4444' }}" stroke-width="4" fill="transparent"
+                                    stroke-dasharray="175.93" stroke-dashoffset="{{ 175.93 - (175.93 * min(abs($marjinLabaBersih), 100)) / 100 }}" class="progress-ring-circle"/>
                         </svg>
+                        <span class="absolute font-bold text-lg {{ $marjinLabaBersih >= 0 ? 'text-green-700' : 'text-red-600' }}">
+                            {{ number_format($marjinLabaBersih, 0) }}%
+                        </span>
                     </div>
                 </div>
             </div>
@@ -378,10 +366,10 @@
                 <div class="space-y-2">
                     <div class="flex justify-between text-sm">
                         <span class="text-gray-600">Biaya vs Pendapatan</span>
-                        <span class="font-semibold text-blue-700">85%</span>
+                        <span class="font-semibold text-blue-700">{{ number_format($efisiensiOperasional, 1) }}%</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="bg-blue-500 h-2 rounded-full" style="width: 85%"></div>
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: {{ min($efisiensiOperasional, 100) }}%"></div>
                     </div>
                 </div>
             </div>
@@ -396,11 +384,11 @@
                 <div class="space-y-2">
                     <div class="flex items-center gap-2 text-sm">
                         <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                        <span class="text-gray-600">12 Transaksi masuk</span>
+                        <span class="text-gray-600">{{ $aktivitasMasukHariIni }} Transaksi masuk</span>
                     </div>
                     <div class="flex items-center gap-2 text-sm">
                         <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                        <span class="text-gray-600">8 Transaksi keluar</span>
+                        <span class="text-gray-600">{{ $aktivitasKeluarHariIni }} Transaksi keluar</span>
                     </div>
                 </div>
             </div>
@@ -413,7 +401,11 @@
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
                     <div>
                         <h3 class="text-xl font-bold text-gray-800 mb-1">Arus Kas Bulanan</h3>
-                        <p class="text-sm text-gray-500">Periode: {{ $arusKasChart[0]['bulan'] ?? '-' }} - {{ $arusKasChart[count($arusKasChart)-1]['bulan'] ?? '-' }}</p>
+                        @if($arusKasChart->isNotEmpty())
+                            <p class="text-sm text-gray-500">Periode: {{ $arusKasChart->first()['bulan'] ?? '-' }} - {{ $arusKasChart->last()['bulan'] ?? '-' }}</p>
+                        @else
+                            <p class="text-sm text-gray-500">Belum ada data untuk ditampilkan.</p>
+                        @endif
                     </div>
                     <div class="flex gap-4 mt-4 sm:mt-0">
                         <div class="flex items-center gap-2">
@@ -478,7 +470,8 @@
                             <th class="p-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal</th>
                             <th class="p-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Deskripsi</th>
                             <th class="p-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="p-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Jumlah</th>                        </tr>
+                            <th class="p-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Jumlah</th>
+                        </tr>
                     </thead>
                     <tbody>
                         @forelse ($transaksiTerbaru as $transaksi)
@@ -486,10 +479,10 @@
                             <td class="p-4">
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium text-gray-900">
-                                        {{ \Carbon\Carbon::parse($transaksi->tanggal)->isoFormat('D MMM YYYY') }}
+                                        {{ \Carbon\Carbon::parse($transaksi->tanggal)->isoFormat('D MMM YY') }}
                                     </span>
                                     <span class="text-xs text-gray-500">
-                                        {{ \Carbon\Carbon::parse($transaksi->tanggal)->isoFormat('HH:mm') }} WIB
+                                        {{ \Carbon\Carbon::parse($transaksi->created_at)->isoFormat('HH:mm') }} WIB
                                     </span>
                                 </div>
                             </td>
@@ -500,7 +493,7 @@
                                            class="w-4 h-4 {{ $transaksi->tipe == 'masuk' ? 'text-green-600' : 'text-red-600' }}"></i>
                                     </div>
                                     <div>
-                                        <p class="text-sm font-medium text-gray-900">{{ $transaksi->deskripsi }}</p>
+                                        <p class="text-sm font-medium text-gray-900">{{ $transaksi->keterangan }}</p>
                                         <p class="text-xs text-gray-500">ID: #{{ substr(md5($transaksi->id), 0, 8) }}</p>
                                     </div>
                                 </div>
@@ -516,13 +509,10 @@
                                     {{ $transaksi->tipe == 'masuk' ? '+' : '-' }} Rp {{ number_format(abs($transaksi->jumlah), 0, ',', '.') }}
                                 </span>
                             </td>
-                            <td class="p-4 text-center">
-                               
-                            </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="text-center py-12">
+                            <td colspan="4" class="text-center py-12">
                                 <div class="flex flex-col items-center gap-3">
                                     <div class="p-4 bg-gray-100 rounded-full">
                                         <i data-lucide="inbox" class="w-8 h-8 text-gray-400"></i>
@@ -627,7 +617,10 @@
                                             size: 12
                                         },
                                         callback: function(value) {
-                                            return 'Rp ' + (value / 1000000) + 'M';
+                                            if (value >= 1000000) {
+                                                return 'Rp ' + (value / 1000000) + 'M';
+                                            }
+                                            return 'Rp ' + value.toLocaleString('id-ID');
                                         }
                                     }
                                 },
@@ -655,7 +648,7 @@
 
                 // Enhanced Expense Doughnut Chart
                 const expenseCtx = document.getElementById('expenseChart');
-                if (expenseCtx && pengeluaranData) {
+                if (expenseCtx && pengeluaranData && pengeluaranData.data.some(d => d > 0)) {
                     new Chart(expenseCtx, {
                         type: 'doughnut',
                         data: {

@@ -5,14 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Barang;
 use App\Models\Pengadaan;
 use App\Models\Supplier;
-use Illuminate\Http\Request;
 use App\Models\ArusKas;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class PengadaanController extends Controller
 {
-    // Method index() tidak perlu diubah, biarkan seperti sebelumnya.
     public function index(Request $request)
     {
         $query = Pengadaan::with(['barang', 'supplier']);
@@ -32,14 +32,11 @@ class PengadaanController extends Controller
         $rataRataPerTransaksi = ($totalTransaksi > 0) ? $totalPengeluaran / $totalTransaksi : 0;
 
         $pengadaansByInvoice = $filteredPengadaans->groupBy('no_invoice');
-        $barangs = Barang::orderBy('nama')->get();
+        // PERBAIKAN: Menggunakan 'nama' sesuai dengan nama kolom di tabel barangs
+        $barangs = Barang::orderBy('nama')->get(); 
         
-        // Menambahkan variabel pengadaans untuk pagination yang mungkin masih terpakai di view lain.
-        $pengadaans = Pengadaan::latest()->paginate(10);
-
         return view('pengadaan.index', compact(
             'pengadaansByInvoice',
-            'pengadaans',
             'barangs',
             'totalPengeluaran',
             'totalItemMasuk',
@@ -48,49 +45,43 @@ class PengadaanController extends Controller
         ));
     }
 
-
-    /**
-     * Menampilkan form untuk membuat data pengadaan baru.
-     */
     public function create()
     {
-        // Ambil semua data barang dan supplier untuk dropdown di form
+        // PERBAIKAN: Menggunakan 'nama' sesuai dengan nama kolom di tabel barangs
         $barangs = Barang::orderBy('nama')->get();
         $suppliers = Supplier::orderBy('nama_supplier')->get();
-
         return view('pengadaan.create', compact('barangs', 'suppliers'));
     }
 
-    /**
-     * Menyimpan data pengadaan baru dari form ke database.
-     * Metode ini diubah untuk menangani banyak item.
-     */
     public function store(Request $request)
     {
-        // 1. Validasi data header dan array item
         $validatedData = $request->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'tanggal_pembelian' => 'required|date',
             'no_invoice' => 'required|string|unique:pengadaans,no_invoice',
             'keterangan' => 'nullable|string',
+            'bukti' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'items' => 'required|array|min:1',
             'items.*.barang_id' => 'required|exists:barangs,id',
             'items.*.jumlah_masuk' => 'required|integer|min:1',
+            'items.*.harga_beli' => 'required|numeric|min:0',
         ]);
 
+        $buktiPath = null;
         DB::beginTransaction();
         try {
+            if ($request->hasFile('bukti')) {
+                $buktiPath = $request->file('bukti')->store('public/bukti_pengadaan');
+            }
+
             $grandTotal = 0;
             $firstPengadaanId = null;
 
-            // 2. Loop melalui setiap item yang dikirim
             foreach ($validatedData['items'] as $itemData) {
                 $barang = Barang::find($itemData['barang_id']);
-                $hargaBeli = $barang->harga_jual; // Ambil harga dari DB agar aman
-                $totalHargaItem = $itemData['jumlah_masuk'] * $hargaBeli;
+                $totalHargaItem = $itemData['jumlah_masuk'] * $itemData['harga_beli'];
                 $grandTotal += $totalHargaItem;
 
-                // 3. Buat record Pengadaan baru untuk setiap item
                 $pengadaan = Pengadaan::create([
                     'supplier_id' => $validatedData['supplier_id'],
                     'tanggal_pembelian' => $validatedData['tanggal_pembelian'],
@@ -98,43 +89,79 @@ class PengadaanController extends Controller
                     'keterangan' => $validatedData['keterangan'],
                     'barang_id' => $itemData['barang_id'],
                     'jumlah_masuk' => $itemData['jumlah_masuk'],
-                    'harga_beli' => $hargaBeli,
+                    'harga_beli' => $itemData['harga_beli'],
                     'total_harga' => $totalHargaItem,
+                    'bukti' => $buktiPath,
                 ]);
+                
+                $barang->stok += $itemData['jumlah_masuk'];
+                $barang->save();
 
-                // Simpan ID dari item pertama yang dibuat untuk referensi ArusKas
                 if (is_null($firstPengadaanId)) {
                     $firstPengadaanId = $pengadaan->id;
                 }
             }
 
-            // 4. Catat SATU KALI sebagai pengeluaran di buku kas
             if ($grandTotal > 0) {
                 ArusKas::create([
                     'tanggal' => $validatedData['tanggal_pembelian'],
-                    'jumlah' => $grandTotal * -1, // Total dari semua item
+                    'jumlah' => $grandTotal,
                     'tipe' => 'keluar',
-                    'deskripsi' => "Pembelian Barang (Invoice: #{$validatedData['no_invoice']})",
-                    'referensi_id' => $firstPengadaanId, // Gunakan ID item pertama sebagai referensi
+                    'keterangan' => "Pembelian Barang (Invoice: #{$validatedData['no_invoice']})",
+                    'kategori' => 'Operasional',
+                    'referensi_id' => $firstPengadaanId,
                     'referensi_tipe' => Pengadaan::class,
                 ]);
             }
 
-            // 5. Jika semua berhasil, commit transaksi
             DB::commit();
-
             return redirect()->route('pengadaan.index')->with('success', 'Pengadaan dengan ' . count($validatedData['items']) . ' item berhasil dicatat.');
 
         } catch (Throwable $e) {
-            // 6. Jika ada error, batalkan semua perubahan
             DB::rollBack();
+            if ($buktiPath) {
+                Storage::delete($buktiPath);
+            }
             return back()->withInput()->withErrors(['error' => 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage()]);
         }
     }
 
-    // Method lain tetap sama
-    public function show(Pengadaan $pengadaan) {}
-    public function edit(Pengadaan $pengadaan) {}
-    public function update(Request $request, Pengadaan $pengadaan) {}
-    public function destroy(Pengadaan $pengadaan) {}
+    public function destroy($no_invoice)
+    {
+        DB::beginTransaction();
+        try {
+            $pengadaans = Pengadaan::where('no_invoice', $no_invoice)->get();
+
+            if($pengadaans->isEmpty()){
+                return redirect()->route('pengadaan.index')->with('error', 'Invoice tidak ditemukan.');
+            }
+
+            $buktiPath = $pengadaans->first()->bukti;
+            $firstPengadaanId = $pengadaans->first()->id;
+
+            ArusKas::where('referensi_tipe', Pengadaan::class)
+                   ->where('referensi_id', $firstPengadaanId)
+                   ->delete();
+
+            foreach ($pengadaans as $pengadaan) {
+                $barang = Barang::find($pengadaan->barang_id);
+                if($barang) {
+                    $barang->stok -= $pengadaan->jumlah_masuk;
+                    $barang->save();
+                }
+                $pengadaan->delete();
+            }
+
+            if ($buktiPath) {
+                Storage::delete($buktiPath);
+            }
+
+            DB::commit();
+            return redirect()->route('pengadaan.index')->with('success', 'Seluruh data untuk invoice #' . $no_invoice . ' berhasil dihapus.');
+
+        } catch (Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Gagal menghapus invoice: ' . $e->getMessage()]);
+        }
+    }
 }

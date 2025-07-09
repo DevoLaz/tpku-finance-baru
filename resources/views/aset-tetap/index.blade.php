@@ -1,10 +1,4 @@
 <x-app-layout>
-    {{-- 
-        Inisialisasi Alpine.js.
-        - showModal: untuk buka/tutup pop-up.
-        - editingAset: untuk menyimpan data aset yang sedang diedit.
-        - formAction: untuk menyimpan URL tujuan form.
-    --}}
     <div 
         x-data="{ 
             showModal: false, 
@@ -22,7 +16,7 @@
                     <p class="text-green-100">Kelola semua aset tetap dan modal perusahaan.</p>
                 </div>
                 <a href="{{ route('aset-tetap.create') }}" class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-semibold flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                     <span>Tambah Aset</span>
                 </a>
             </div>
@@ -49,27 +43,43 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($asets as $aset)
+                        @forelse ($asetTetaps as $aset)
                             <tr class="border-b hover:bg-gray-50">
-                                {{-- PERBAIKAN DI SINI --}}
                                 <td class="py-3 px-4">
                                     <p class="font-medium text-gray-900">{{ $aset->nama_aset }}</p>
-                                    <p class="text-sm text-gray-500">{{ $aset->kategori }}</p>
+                                    <p class="text-sm text-gray-500">{{ $aset->kategori ?? 'Tidak ada kategori' }}</p>
                                 </td>
                                 <td class="py-3 px-4 text-right">Rp {{ number_format($aset->harga_perolehan, 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-right text-red-600">(Rp {{ number_format($aset->akumulasi_penyusutan, 0, ',', '.') }})</td>
                                 <td class="py-3 px-4 text-right font-bold">Rp {{ number_format($aset->nilai_buku, 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-center">
-                                    <button 
-                                        type="button" 
-                                        x-on:click="
-                                            showModal = true;
-                                            editingAset = {{ $aset->toJson() }};
-                                            formAction = `{{ route('aset-tetap.update', $aset->id) }}`;
-                                        "
-                                        class="p-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors" title="Lihat & Edit Detail">
-                                        <i data-lucide="edit" class="w-4 h-4"></i>
-                                    </button>
+                                    <div class="flex justify-center items-center gap-2">
+                                        @if ($aset->bukti)
+                                            <button
+                                                type="button"
+                                                data-img-url="{{ Storage::url($aset->bukti) }}"
+                                                class="p-2 bg-blue-200 hover:bg-blue-300 text-blue-700 rounded-lg transition-colors" title="Lihat Bukti">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </button>
+                                        @endif
+                                        <button 
+                                            type="button" 
+                                            x-on:click="
+                                                showModal = true;
+                                                editingAset = {{ $aset->toJson() }};
+                                                formAction = `{{ route('aset-tetap.update', $aset->id) }}`;
+                                            "
+                                            class="p-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors" title="Lihat & Edit Detail">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        </button>
+                                        <form action="{{ route('aset-tetap.destroy', $aset) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus aset ini?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="p-2 bg-red-200 hover:bg-red-300 text-red-700 rounded-lg transition-colors" title="Hapus Aset">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -82,14 +92,14 @@
                     </tbody>
                 </table>
             </div>
-            @if($asets->hasPages())
+            @if($asetTetaps->hasPages())
                 <div class="p-6 border-t border-gray-200">
-                    {{ $asets->links() }}
+                    {{ $asetTetaps->links() }}
                 </div>
             @endif
         </div>
 
-        {{-- INI MODAL EDIT NYA --}}
+        {{-- Modal Edit --}}
         <div 
             x-show="showModal" 
             x-transition
@@ -103,47 +113,50 @@
                 class="bg-white rounded-lg shadow-xl w-full max-w-2xl"
             >
                 {{-- Form di dalam Modal --}}
-                <form :action="formAction" method="POST" class="p-6">
+                <form :action="formAction" method="POST" class="p-6" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
                     <div class="flex justify-between items-center pb-3 border-b">
                         <h3 class="text-xl font-bold text-gray-900">Edit Aset: <span x-text="editingAset.nama_aset"></span></h3>
                         <button type="button" x-on:click="showModal = false" class="text-gray-400 hover:text-gray-600">
-                            <i data-lucide="x" class="w-6 h-6"></i>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     </div>
 
-                    {{-- Isi Form diambil dari _form.blade.php, tapi kita copy-paste di sini agar mudah di-bind --}}
-                    <div class="mt-4 space-y-4">
+                    {{-- PERBAIKAN: Kode form ditulis langsung di sini, tidak pakai @include --}}
+                    <div class="mt-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Nama Aset</label>
                                 <input type="text" name="nama_aset" x-model="editingAset.nama_aset" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Kategori</label>
-                                <input type="text" name="kategori" x-model="editingAset.kategori" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
-                            </div>
-                            <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Tanggal Perolehan</label>
-                                <input type="date" name="tanggal_perolehan" :value="editingAset.tanggal_perolehan ? editingAset.tanggal_perolehan.substring(0, 10) : ''" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
+                                <input type="date" name="tanggal_pembelian" :value="editingAset.tanggal_pembelian ? editingAset.tanggal_pembelian.substring(0, 10) : ''" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Harga Perolehan</label>
                                 <input type="number" name="harga_perolehan" x-model="editingAset.harga_perolehan" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                             </div>
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Masa Manfaat</label>
-                                <input type="number" name="masa_manfaat" x-model="editingAset.masa_manfaat" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Masa Manfaat (Tahun)</label>
+                                <input type="number" name="umur_manfaat" x-model="editingAset.umur_manfaat" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Nilai Residu</label>
                                 <input type="number" name="nilai_residu" x-model="editingAset.nilai_residu" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-sm font-bold text-gray-700 mb-2">Deskripsi</label>
-                                <textarea name="deskripsi" rows="3" x-model="editingAset.deskripsi" class="w-full px-4 py-3 border border-gray-300 rounded-lg"></textarea>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Bukti Saat Ini</label>
+                                <template x-if="editingAset.bukti">
+                                    <img :src="'/storage/' + editingAset.bukti.replace('public/', '')" class="w-32 h-32 object-cover rounded-lg border">
+                                </template>
+                                <template x-if="!editingAset.bukti">
+                                    <p class="text-sm text-gray-500">Tidak ada bukti.</p>
+                                </template>
+                                <label class="block text-sm font-bold text-gray-700 mb-2 mt-2">Ganti Bukti (Opsional)</label>
+                                <input type="file" name="bukti" class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
                             </div>
                         </div>
                     </div>
@@ -159,6 +172,5 @@
                 </form>
             </div>
         </div>
-
     </div>
 </x-app-layout>

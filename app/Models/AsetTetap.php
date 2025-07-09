@@ -11,40 +11,44 @@ class AsetTetap extends Model
 {
     use HasFactory;
 
-    // Izinkan semua kolom diisi secara massal
-    protected $guarded = ['id'];
+    /**
+     * The attributes that are mass assignable.
+     * Menggunakan $fillable lebih aman daripada $guarded.
+     */
+    protected $fillable = [
+        'nama_aset',
+        'kategori',
+        'tanggal_perolehan',
+        'harga_perolehan',
+        'masa_manfaat',
+        'nilai_residu',
+        'deskripsi',
+        'bukti',
+    ];
 
-    // Otomatis ubah tanggal_perolehan menjadi objek Carbon (tipe data tanggal)
+    /**
+     * The attributes that should be cast to native types.
+     */
     protected $casts = [
         'tanggal_perolehan' => 'date',
     ];
 
     /**
      * Accessor untuk menghitung Akumulasi Penyusutan secara dinamis.
-     * Kode ini akan berjalan setiap kali kita memanggil $aset->akumulasi_penyusutan
      */
     protected function akumulasiPenyusutan(): Attribute
     {
         return Attribute::make(
             get: function ($value) {
-                // Jika masa manfaat 0 (untuk Kas/Modal), penyusutan adalah 0.
-                if ($this->masa_manfaat == 0) {
+                // Handle jika masa_manfaat adalah 0 atau null untuk mencegah division by zero
+                if (!$this->masa_manfaat) {
                     return 0;
                 }
 
-                // Biaya penyusutan per tahun (Metode Garis Lurus)
                 $penyusutan_per_tahun = ($this->harga_perolehan - $this->nilai_residu) / $this->masa_manfaat;
-
-                // Biaya penyusutan per bulan
                 $penyusutan_per_bulan = $penyusutan_per_tahun / 12;
-
-                // Hitung sudah berapa bulan aset dimiliki sejak tanggal perolehan
                 $bulan_berlalu = $this->tanggal_perolehan->diffInMonths(Carbon::now());
-
-                // Akumulasi penyusutan adalah penyusutan per bulan dikali bulan yang sudah berlalu
                 $akumulasi = $penyusutan_per_bulan * $bulan_berlalu;
-
-                // Batasi akumulasi agar tidak melebihi nilai yang bisa disusutkan
                 $nilai_maks_susut = $this->harga_perolehan - $this->nilai_residu;
 
                 return min($akumulasi, $nilai_maks_susut);
@@ -54,7 +58,6 @@ class AsetTetap extends Model
 
     /**
      * Accessor untuk menghitung Nilai Buku Aset secara dinamis.
-     * Nilai Buku = Harga Perolehan - Akumulasi Penyusutan
      */
     protected function nilaiBuku(): Attribute
     {

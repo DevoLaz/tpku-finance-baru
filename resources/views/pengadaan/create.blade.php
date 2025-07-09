@@ -22,18 +22,19 @@
                 </div>
             @endif
 
-            <form action="{{ route('pengadaan.store') }}" method="POST" class="space-y-6">
+            {{-- 1. TAMBAHKAN enctype="multipart/form-data" DI SINI --}}
+            <form action="{{ route('pengadaan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 
                 {{-- Bagian Header Invoice --}}
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-lg">
                     <div>
                         <label for="no_invoice" class="block text-sm font-bold text-gray-700 mb-2">No Invoice *</label>
                         <input type="text" name="no_invoice" value="{{ old('no_invoice') }}" placeholder="Contoh: INV-2025-001" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                     </div>
                     <div>
-                        <label for="tanggal_pembelian" class="block text-sm font-bold text-gray-700 mb-2">Tanggal Pembelian *</label>
-                        <input type="date" name="tanggal_pembelian" value="{{ old('tanggal_pembelian', date('Y-m-d')) }}" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
+                        <label for="tanggal_pengadaan" class="block text-sm font-bold text-gray-700 mb-2">Tanggal Pembelian *</label>
+                        <input type="date" name="tanggal_pengadaan" value="{{ old('tanggal_pengadaan', date('Y-m-d')) }}" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                     </div>
                     <div>
                         <label for="supplier_id" class="block text-sm font-bold text-gray-700 mb-2">Pilih Supplier *</label>
@@ -46,7 +47,13 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="md:col-span-3">
+                    {{-- 2. TAMBAHKAN INPUT FILE DI SINI --}}
+                    <div>
+                        <label for="bukti" class="block text-sm font-bold text-gray-700 mb-2">Upload Bukti (Opsional)</label>
+                        <input type="file" name="bukti" id="bukti" class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
+                        @error('bukti') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
+                    </div>
+                    <div class="md:col-span-2">
                         <label for="keterangan" class="block text-sm font-bold text-gray-700 mb-2">Keterangan (Opsional)</label>
                         <textarea name="keterangan" rows="2" placeholder="Catatan untuk invoice ini..." class="w-full px-4 py-3 border border-gray-300 rounded-lg">{{ old('keterangan') }}</textarea>
                     </div>
@@ -63,19 +70,19 @@
                                 <select :name="`items[${index}][barang_id]`" x-model="item.barang_id" @change="updatePrice(index)" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
                                     <option value="">-- Pilih Barang --</option>
                                     @foreach($barangs as $barang)
-                                        <option value="{{ $barang->id }}">{{ $barang->nama }}</option>
+                                        <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}">{{ $barang->nama_barang }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             {{-- Jumlah --}}
                             <div class="col-span-4 md:col-span-2">
                                 <label class="text-xs font-medium text-gray-600">Jumlah</label>
-                                <input type="number" :name="`items[${index}][jumlah_masuk]`" x-model.number="item.jumlah_masuk" @input="calculateTotals" min="1" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                                <input type="number" :name="`items[${index}][jumlah]`" x-model.number="item.jumlah" @input="calculateTotals" min="1" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
                             </div>
                             {{-- Harga --}}
                             <div class="col-span-4 md:col-span-2">
-                                <label class="text-xs font-medium text-gray-600">Harga Satuan</label>
-                                <input type="text" :value="formatRupiah(item.harga_beli)" class="w-full mt-1 px-3 py-2 border bg-gray-100 rounded-md" readonly>
+                                <label class="text-xs font-medium text-gray-600">Harga Beli Satuan</label>
+                                <input type="number" :name="`items[${index}][harga]`" x-model.number="item.harga" @input="calculateTotals" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
                             </div>
                             {{-- Total --}}
                             <div class="col-span-4 md:col-span-3">
@@ -85,7 +92,7 @@
                             {{-- Tombol Hapus --}}
                             <div class="col-span-12 md:col-span-1 flex items-end">
                                 <button type="button" @click="removeItem(index)" x-show="items.length > 1" class="mt-1 p-2 text-red-500 hover:bg-red-100 rounded-full">
-                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                                 </button>
                             </div>
                         </div>
@@ -95,7 +102,7 @@
                 {{-- Tombol Tambah Item & Grand Total --}}
                 <div class="flex justify-between items-center pt-4">
                     <button type="button" @click="addItem" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2">
-                        <i data-lucide="plus" class="w-5 h-5"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
                         Tambah Barang
                     </button>
                     <div class="text-right">
@@ -118,7 +125,7 @@
         <script>
             function formPengadaanData() {
                 return {
-                    items: [{ barang_id: '', jumlah_masuk: 1, harga_beli: 0, total_harga: 0 }],
+                    items: [{ barang_id: '', jumlah: 1, harga: 0, total_harga: 0 }],
                     barangsData: [],
                     grandTotal: 0,
 
@@ -128,7 +135,7 @@
                     },
                     
                     addItem() {
-                        this.items.push({ barang_id: '', jumlah_masuk: 1, harga_beli: 0, total_harga: 0 });
+                        this.items.push({ barang_id: '', jumlah: 1, harga: 0, total_harga: 0 });
                     },
 
                     removeItem(index) {
@@ -137,16 +144,17 @@
                     },
 
                     updatePrice(index) {
-                        const selectedBarangId = this.items[index].barang_id;
-                        const barang = this.barangsData.find(b => b.id == selectedBarangId);
-                        this.items[index].harga_beli = barang ? parseFloat(barang.harga_jual) : 0;
+                        const selectElement = event.target;
+                        const selectedOption = selectElement.options[selectElement.selectedIndex];
+                        const harga = selectedOption.dataset.harga;
+                        this.items[index].harga = harga ? parseFloat(harga) : 0;
                         this.calculateTotals();
                     },
 
                     calculateTotals() {
                         let total = 0;
                         this.items.forEach(item => {
-                            item.total_harga = item.jumlah_masuk * item.harga_beli;
+                            item.total_harga = (item.jumlah || 0) * (item.harga || 0);
                             total += item.total_harga;
                         });
                         this.grandTotal = total;
