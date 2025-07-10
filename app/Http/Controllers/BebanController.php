@@ -19,16 +19,16 @@ class BebanController extends Controller
 
     public function create()
     {
-        $kategoris = Kategori::all();
+        $kategoris = Kategori::orderBy('nama_kategori')->get();
         return view('beban.create', compact('kategoris'));
     }
 
     public function store(Request $request)
     {
-        // PERBAIKAN: Menyesuaikan validasi dengan nama input dari form
         $validatedData = $request->validate([
             'tanggal' => 'required|date',
             'nama_beban' => 'required|string|max:255',
+            'kategori_id' => 'required|exists:kategoris,id',
             'jumlah' => 'required|numeric|min:0',
             'keterangan' => 'nullable|string',
             'bukti' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
@@ -41,23 +41,21 @@ class BebanController extends Controller
                 $buktiPath = $request->file('bukti')->store('public/bukti_beban');
             }
 
-            // PERBAIKAN: Memetakan 'nama_beban' dari form ke kolom 'nama' di database
             $beban = Beban::create([
                 'tanggal' => $validatedData['tanggal'],
                 'nama' => $validatedData['nama_beban'],
                 'jumlah' => $validatedData['jumlah'],
                 'keterangan' => $validatedData['keterangan'],
                 'bukti' => $buktiPath,
-                'kategori_id' => 1, // Asumsi default kategori, bisa disesuaikan
+                'kategori_id' => $validatedData['kategori_id'],
             ]);
 
+            // PERBAIKAN: Menyimpan deskripsi dari form ke kolom 'deskripsi' di tabel arus_kas
             ArusKas::create([
                 'tanggal' => $beban->tanggal,
-                'keterangan' => 'Beban: ' . $beban->nama,
-                'deskripsi' => $beban->keterangan ?: 'Pembayaran beban ' . $beban->nama,
                 'jumlah' => $beban->jumlah,
                 'tipe' => 'keluar',
-                'kategori' => 'Operasional',
+                'deskripsi' => $beban->nama, // Menggunakan nama beban sebagai deskripsi utama
                 'referensi_id' => $beban->id,
                 'referensi_tipe' => Beban::class,
             ]);

@@ -44,8 +44,9 @@
                     <select name="barang_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
                         <option value="">Semua Barang</option>
                         @foreach($barangs as $barang)
+                            {{-- PERBAIKAN 1: Menggunakan 'nama' bukan 'nama_barang' --}}
                             <option value="{{ $barang->id }}" {{ request('barang_id') == $barang->id ? 'selected' : '' }}>
-                                {{ $barang->nama_barang }}
+                                {{ $barang->nama }}
                             </option>
                         @endforeach
                     </select>
@@ -99,7 +100,8 @@
                         @forelse ($pengadaansByInvoice as $invoiceNumber => $items)
                             <tbody x-data="{ open: false }">
                                 <tr class="border-b hover:bg-gray-50 cursor-pointer" @click="open = !open">
-                                    <td class="py-4 px-4">{{ $items->first()->tanggal_pengadaan->format('d M Y') }}</td>
+                                    {{-- PERBAIKAN 2: Menggunakan 'tanggal_pembelian' --}}
+                                    <td class="py-4 px-4">{{ \Carbon\Carbon::parse($items->first()->tanggal_pembelian)->format('d M Y') }}</td>
                                     <td class="py-4 px-4 font-mono">{{ $invoiceNumber }}</td>
                                     <td class="py-4 px-4">{{ $items->first()->supplier->nama_supplier ?? 'N/A' }}</td>
                                     <td class="py-4 px-4 text-right font-bold text-green-600">Rp {{ number_format($items->sum('total_harga'), 0, ',', '.') }}</td>
@@ -112,7 +114,6 @@
                                 <tr x-show="open" x-transition class="bg-gray-50">
                                     <td colspan="5" class="p-0">
                                         <div class="p-4">
-                                            {{-- Tombol Aksi (Lihat Bukti & Hapus) --}}
                                             <div class="flex justify-end items-center gap-3 mb-4">
                                                 @if($items->first()->bukti)
                                                 <button 
@@ -145,9 +146,11 @@
                                                 <tbody>
                                                     @foreach ($items as $item)
                                                         <tr class="border-b border-gray-200 last:border-b-0">
-                                                            <td class="py-3 px-3">{{ $item->barang->nama_barang ?? 'N/A' }}</td>
-                                                            <td class="py-3 px-3 text-center">{{ number_format($item->jumlah, 0, ',', '.') }}</td>
-                                                            <td class="py-3 px-3 text-right">Rp {{ number_format($item->harga, 0, ',', '.') }}</td>
+                                                            {{-- PERBAIKAN 3: Menggunakan 'nama' bukan 'nama_barang' --}}
+                                                            <td class="py-3 px-3">{{ $item->barang->nama ?? 'N/A' }}</td>
+                                                            <td class="py-3 px-3 text-center">{{ number_format($item->jumlah_masuk, 0, ',', '.') }}</td>
+                                                            {{-- PERBAIKAN 4: Menggunakan 'harga_beli' bukan 'harga' --}}
+                                                            <td class="py-3 px-3 text-right">Rp {{ number_format($item->harga_beli, 0, ',', '.') }}</td>
                                                             <td class="py-3 px-3 text-right font-medium">Rp {{ number_format($item->total_harga, 0, ',', '.') }}</td>
                                                         </tr>
                                                     @endforeach

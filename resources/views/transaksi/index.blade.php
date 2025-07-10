@@ -114,8 +114,8 @@
                                     @endif
                                 </td>
                                 <td class="py-3 px-4 text-center">
-                                    {{-- Tombol Hapus --}}
-                                    <form action="{{ route('transaksi.destroy', $transaction) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus rekap ini?');">
+                                    {{-- PERBAIKAN FINAL: Menggunakan $transaction->id secara eksplisit --}}
+                                    <form action="{{ route('transaksi.destroy', $transaction->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus rekap ini?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100">

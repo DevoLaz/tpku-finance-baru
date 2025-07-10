@@ -1,4 +1,5 @@
 <x-app-layout>
+    {{-- Menggunakan Alpine.js untuk membuat form dinamis --}}
     <div 
         class="p-8"
         x-data="formPengadaanData()" 
@@ -22,7 +23,7 @@
                 </div>
             @endif
 
-            {{-- 1. TAMBAHKAN enctype="multipart/form-data" DI SINI --}}
+            {{-- Menambahkan enctype untuk upload file --}}
             <form action="{{ route('pengadaan.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 
@@ -33,8 +34,9 @@
                         <input type="text" name="no_invoice" value="{{ old('no_invoice') }}" placeholder="Contoh: INV-2025-001" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                     </div>
                     <div>
-                        <label for="tanggal_pengadaan" class="block text-sm font-bold text-gray-700 mb-2">Tanggal Pembelian *</label>
-                        <input type="date" name="tanggal_pengadaan" value="{{ old('tanggal_pengadaan', date('Y-m-d')) }}" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
+                        {{-- PERBAIKAN 1: Menyesuaikan nama input tanggal --}}
+                        <label for="tanggal_pembelian" class="block text-sm font-bold text-gray-700 mb-2">Tanggal Pembelian *</label>
+                        <input type="date" name="tanggal_pembelian" value="{{ old('tanggal_pembelian', date('Y-m-d')) }}" class="w-full px-4 py-3 border border-gray-300 rounded-lg" required>
                     </div>
                     <div>
                         <label for="supplier_id" class="block text-sm font-bold text-gray-700 mb-2">Pilih Supplier *</label>
@@ -47,7 +49,6 @@
                             @endforeach
                         </select>
                     </div>
-                    {{-- 2. TAMBAHKAN INPUT FILE DI SINI --}}
                     <div>
                         <label for="bukti" class="block text-sm font-bold text-gray-700 mb-2">Upload Bukti (Opsional)</label>
                         <input type="file" name="bukti" id="bukti" class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
@@ -70,19 +71,21 @@
                                 <select :name="`items[${index}][barang_id]`" x-model="item.barang_id" @change="updatePrice(index)" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
                                     <option value="">-- Pilih Barang --</option>
                                     @foreach($barangs as $barang)
-                                        <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}">{{ $barang->nama_barang }}</option>
+                                        <option value="{{ $barang->id }}" data-harga="{{ $barang->harga_jual }}">{{ $barang->nama }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             {{-- Jumlah --}}
                             <div class="col-span-4 md:col-span-2">
                                 <label class="text-xs font-medium text-gray-600">Jumlah</label>
-                                <input type="number" :name="`items[${index}][jumlah]`" x-model.number="item.jumlah" @input="calculateTotals" min="1" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                                {{-- PERBAIKAN 2: Menyesuaikan nama input jumlah --}}
+                                <input type="number" :name="`items[${index}][jumlah_masuk]`" x-model.number="item.jumlah" @input="calculateTotals" min="1" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
                             </div>
                             {{-- Harga --}}
                             <div class="col-span-4 md:col-span-2">
                                 <label class="text-xs font-medium text-gray-600">Harga Beli Satuan</label>
-                                <input type="number" :name="`items[${index}][harga]`" x-model.number="item.harga" @input="calculateTotals" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
+                                {{-- PERBAIKAN 3: Menyesuaikan nama input harga --}}
+                                <input type="number" :name="`items[${index}][harga_beli]`" x-model.number="item.harga" @input="calculateTotals" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md" required>
                             </div>
                             {{-- Total --}}
                             <div class="col-span-4 md:col-span-3">
@@ -122,6 +125,8 @@
     </div>
 
     @push('scripts')
+        {{-- Menambahkan Alpine.js CDN agar fungsionalitasnya berjalan --}}
+        <script src="//unpkg.com/alpinejs" defer></script>
         <script>
             function formPengadaanData() {
                 return {

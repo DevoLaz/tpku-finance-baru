@@ -10,22 +10,10 @@ class Pengadaan extends Model
     use HasFactory;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * PERBAIKAN: Menggunakan $guarded agar lebih fleksibel dan menghindari error.
+     * Ini mengizinkan semua kolom untuk diisi, selama datanya sudah divalidasi di controller.
      */
-    // TAMBAHKAN BAGIAN INI UNTUK MEMBERI IZIN
-    protected $fillable = [
-        'barang_id',
-        'supplier_id',
-        'tanggal_pembelian',
-        'no_invoice',
-        'jumlah_masuk',
-        'harga_beli',
-        'total_harga',
-        'keterangan',
-        'bukti', 
-    ];
+    protected $guarded = ['id'];
 
     // Relasi: Satu pengadaan hanya dimiliki oleh satu Barang
     public function barang()

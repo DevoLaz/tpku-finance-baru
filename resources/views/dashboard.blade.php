@@ -493,7 +493,8 @@
                                            class="w-4 h-4 {{ $transaksi->tipe == 'masuk' ? 'text-green-600' : 'text-red-600' }}"></i>
                                     </div>
                                     <div>
-                                        <p class="text-sm font-medium text-gray-900">{{ $transaksi->keterangan }}</p>
+                                        {{-- PERBAIKAN: Mengganti 'keterangan' menjadi 'deskripsi' --}}
+                                        <p class="text-sm font-medium text-gray-900">{{ $transaksi->deskripsi }}</p>
                                         <p class="text-xs text-gray-500">ID: #{{ substr(md5($transaksi->id), 0, 8) }}</p>
                                     </div>
                                 </div>

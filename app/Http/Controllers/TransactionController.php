@@ -80,12 +80,12 @@ class TransactionController extends Controller
 
             $transaksi = Transaction::create($validatedData);
 
+            // PERBAIKAN: Menyimpan deskripsi dari form ke kolom 'deskripsi' di tabel arus_kas
             ArusKas::create([
                 'tanggal' => $transaksi->tanggal_transaksi,
                 'jumlah' => $transaksi->total_penjualan,
                 'tipe' => 'masuk',
-                'deskripsi' => 'Pemasukan dari penjualan: ' . ($transaksi->keterangan ?: "Rekap tgl " . $transaksi->tanggal_transaksi->format('d-m-Y')),
-                'keterangan' => 'Pemasukan dari penjualan',
+                'deskripsi' => $validatedData['keterangan'] ?: 'Pemasukan dari Penjualan', // Ini adalah perbaikannya
                 'referensi_id' => $transaksi->id,
                 'referensi_tipe' => Transaction::class,
             ]);
@@ -101,10 +101,12 @@ class TransactionController extends Controller
         }
     }
 
-    public function destroy(Transaction $transaction)
+    public function destroy($id)
     {
         DB::beginTransaction();
         try {
+            $transaction = Transaction::findOrFail($id);
+
             ArusKas::where('referensi_tipe', Transaction::class)
                    ->where('referensi_id', $transaction->id)
                    ->delete();
@@ -114,6 +116,7 @@ class TransactionController extends Controller
             }
 
             $transaction->delete();
+
             DB::commit();
             return redirect()->route('transaksi.index')->with('success', 'Rekap transaksi berhasil dihapus.');
         } catch (\Exception $e) {
