@@ -25,6 +25,11 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
                         <span>Tambah Pengadaan</span>
                     </a>
+                    {{-- TOMBOL EKSPOR PDF --}}
+                    <a href="{{ route('pengadaan.exportPdf', request()->query()) }}" class="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold flex items-center gap-2 transition-all transform hover:scale-105">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                        <span>Ekspor PDF</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -44,7 +49,6 @@
                     <select name="barang_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
                         <option value="">Semua Barang</option>
                         @foreach($barangs as $barang)
-                            {{-- PERBAIKAN 1: Menggunakan 'nama' bukan 'nama_barang' --}}
                             <option value="{{ $barang->id }}" {{ request('barang_id') == $barang->id ? 'selected' : '' }}>
                                 {{ $barang->nama }}
                             </option>
@@ -100,7 +104,6 @@
                         @forelse ($pengadaansByInvoice as $invoiceNumber => $items)
                             <tbody x-data="{ open: false }">
                                 <tr class="border-b hover:bg-gray-50 cursor-pointer" @click="open = !open">
-                                    {{-- PERBAIKAN 2: Menggunakan 'tanggal_pembelian' --}}
                                     <td class="py-4 px-4">{{ \Carbon\Carbon::parse($items->first()->tanggal_pembelian)->format('d M Y') }}</td>
                                     <td class="py-4 px-4 font-mono">{{ $invoiceNumber }}</td>
                                     <td class="py-4 px-4">{{ $items->first()->supplier->nama_supplier ?? 'N/A' }}</td>
@@ -146,10 +149,8 @@
                                                 <tbody>
                                                     @foreach ($items as $item)
                                                         <tr class="border-b border-gray-200 last:border-b-0">
-                                                            {{-- PERBAIKAN 3: Menggunakan 'nama' bukan 'nama_barang' --}}
                                                             <td class="py-3 px-3">{{ $item->barang->nama ?? 'N/A' }}</td>
                                                             <td class="py-3 px-3 text-center">{{ number_format($item->jumlah_masuk, 0, ',', '.') }}</td>
-                                                            {{-- PERBAIKAN 4: Menggunakan 'harga_beli' bukan 'harga' --}}
                                                             <td class="py-3 px-3 text-right">Rp {{ number_format($item->harga_beli, 0, ',', '.') }}</td>
                                                             <td class="py-3 px-3 text-right font-medium">Rp {{ number_format($item->total_harga, 0, ',', '.') }}</td>
                                                         </tr>

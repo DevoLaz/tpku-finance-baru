@@ -8,6 +8,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use PDF;
 
 class TransactionController extends Controller
 {
@@ -123,5 +125,42 @@ class TransactionController extends Controller
             DB::rollBack();
             return back()->with('error', 'Gagal menghapus rekap: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Handle PDF export request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function exportPdf(Request $request)
+    {
+        $periode = $request->input('periode', 'bulanan');
+        $tanggal = $request->input('tanggal', date('Y-m-d'));
+        $bulan = (int)$request->input('bulan', date('m'));
+        $tahun = $request->input('tahun', date('Y'));
+
+        $query = Transaction::query();
+
+        if ($periode == 'harian') {
+            $query->whereDate('tanggal_transaksi', $tanggal);
+            $judulPeriode = Carbon::parse($tanggal)->format('d F Y');
+        } else { // bulanan
+            $query->whereMonth('tanggal_transaksi', $bulan)->whereYear('tanggal_transaksi', $tahun);
+            $judulPeriode = Carbon::create()->month($bulan)->format('F') . ' ' . $tahun;
+        }
+
+        // Get all transactions for the PDF, not paginated
+        $transactions = $query->latest('tanggal_transaksi')->get();
+        $totalPemasukan = $transactions->sum('total_penjualan');
+
+        // Load the view and pass the data
+        $pdf = PDF::loadView('transaksi.pdf', compact('transactions', 'totalPemasukan', 'judulPeriode'));
+        
+        // Generate a dynamic filename
+        $fileName = 'laporan-penjualan-' . Str::slug($judulPeriode) . '.pdf';
+
+        // Download the PDF file
+        return $pdf->download($fileName);
     }
 }

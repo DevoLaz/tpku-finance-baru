@@ -2,8 +2,17 @@
     <div class="p-8">
         <!-- Header -->
         <div class="bg-gradient-to-r from-[#173720] to-[#2a5a37] rounded-lg p-6 mb-6 shadow-lg">
-            <h1 class="text-3xl font-bold text-white mb-2">Laporan Laba Rugi</h1>
-            <p class="text-green-100">Analisis pendapatan dan pengeluaran perusahaan</p>
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">Laporan Laba Rugi</h1>
+                    <p class="text-green-100">Analisis pendapatan dan pengeluaran perusahaan</p>
+                </div>
+                {{-- Tombol Ekspor PDF --}}
+                <a href="{{ route('laporan.laba_rugi.exportPdf', request()->query()) }}" class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                    <span>Ekspor PDF</span>
+                </a>
+            </div>
         </div>
 
         <!-- Filter Section -->

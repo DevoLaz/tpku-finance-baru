@@ -9,18 +9,29 @@ use App\Models\ArusKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use PDF;
 
 class PengadaanController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Pengadaan::query();
+        $query = Pengadaan::query()->with('supplier', 'barang');
 
-        // Logika filter (jika diperlukan di masa depan)
-        // ...
+        // PENYEMPURNAAN: Menambahkan logika filter yang sudah ada di view
+        if ($request->filled('dari')) {
+            $query->whereDate('tanggal_pembelian', '>=', $request->dari);
+        }
+        if ($request->filled('sampai')) {
+            $query->whereDate('tanggal_pembelian', '<=', $request->sampai);
+        }
+        if ($request->filled('barang_id')) {
+            // Jika filter barang dipilih, kita perlu mencari semua invoice yang mengandung barang tsb.
+            $invoiceNumbers = Pengadaan::where('barang_id', $request->barang_id)->pluck('no_invoice')->unique();
+            $query->whereIn('no_invoice', $invoiceNumbers);
+        }
 
-        // PERBAIKAN: Mengambil data dan variabel yang dibutuhkan oleh view index Anda
-        $allPengadaans = $query->with('supplier', 'barang')->latest()->get();
+        $allPengadaans = $query->latest('tanggal_pembelian')->get();
         $pengadaansByInvoice = $allPengadaans->groupBy('no_invoice');
         
         $barangs = Barang::orderBy('nama')->get();
@@ -48,7 +59,6 @@ class PengadaanController extends Controller
 
     public function store(Request $request)
     {
-        // Validasi sudah benar sesuai dengan form multi-barang Anda
         $validatedData = $request->validate([
             'no_invoice' => 'required|string|max:255',
             'tanggal_pembelian' => 'required|date',
@@ -70,32 +80,26 @@ class PengadaanController extends Controller
 
             $grandTotal = 0;
 
-            // PERBAIKAN LOGIKA TOTAL: Loop untuk membuat satu baris per item
             foreach ($validatedData['items'] as $itemData) {
                 $totalHargaItem = $itemData['jumlah_masuk'] * $itemData['harga_beli'];
                 $grandTotal += $totalHargaItem;
 
                 Pengadaan::create([
-                    // Data Invoice (sama untuk semua item)
                     'no_invoice' => $validatedData['no_invoice'],
                     'tanggal_pembelian' => $validatedData['tanggal_pembelian'],
                     'supplier_id' => $validatedData['supplier_id'],
                     'keterangan' => $validatedData['keterangan'],
                     'bukti' => $buktiPath,
-
-                    // Data Item (berbeda untuk setiap baris)
                     'barang_id' => $itemData['barang_id'],
                     'jumlah_masuk' => $itemData['jumlah_masuk'],
                     'harga_beli' => $itemData['harga_beli'],
                     'total_harga' => $totalHargaItem,
                 ]);
 
-                // Update stok
                 $barang = Barang::find($itemData['barang_id']);
                 $barang->increment('stok', $itemData['jumlah_masuk']);
             }
 
-            // Catat ke Arus Kas (satu kali untuk seluruh invoice)
             ArusKas::create([
                 'tanggal' => $validatedData['tanggal_pembelian'],
                 'jumlah' => $grandTotal,
@@ -126,23 +130,20 @@ class PengadaanController extends Controller
                 return back()->with('error', 'Invoice tidak ditemukan.');
             }
 
-            // Hapus Arus Kas terkait
             ArusKas::where('deskripsi', 'like', '%(Invoice: ' . $no_invoice . ')%')->delete();
 
+            $buktiPath = $pengadaans->first()->bukti;
+
             foreach ($pengadaans as $pengadaan) {
-                // Kembalikan stok barang
                 $barang = Barang::find($pengadaan->barang_id);
                 if ($barang) {
                     $barang->decrement('stok', $pengadaan->jumlah_masuk);
                 }
-                
-                // Hapus bukti fisik (hanya sekali)
-                if ($pengadaan->bukti && Storage::exists($pengadaan->bukti)) {
-                    Storage::delete($pengadaan->bukti);
-                }
-                
-                // Hapus record pengadaan
                 $pengadaan->delete();
+            }
+            
+            if ($buktiPath && Storage::exists($buktiPath)) {
+                Storage::delete($buktiPath);
             }
 
             DB::commit();
@@ -151,5 +152,40 @@ class PengadaanController extends Controller
             DB::rollBack();
             return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Handle PDF export request for procurement.
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = Pengadaan::query()->with('supplier', 'barang');
+
+        $dari = $request->input('dari');
+        $sampai = $request->input('sampai');
+
+        // Apply filters
+        if ($dari) {
+            $query->whereDate('tanggal_pembelian', '>=', $dari);
+        }
+        if ($sampai) {
+            $query->whereDate('tanggal_pembelian', '<=', $sampai);
+        }
+        if ($request->filled('barang_id')) {
+            $invoiceNumbers = Pengadaan::where('barang_id', $request->barang_id)->pluck('no_invoice')->unique();
+            $query->whereIn('no_invoice', $invoiceNumbers);
+        }
+
+        $allPengadaans = $query->latest('tanggal_pembelian')->get();
+        $pengadaansByInvoice = $allPengadaans->groupBy('no_invoice');
+        
+        $totalPengeluaran = $allPengadaans->sum('total_harga');
+
+        // Generate PDF
+        $pdf = PDF::loadView('pengadaan.pdf', compact('pengadaansByInvoice', 'totalPengeluaran', 'dari', 'sampai'));
+        
+        $fileName = 'laporan-pengadaan-' . date('Y-m-d') . '.pdf';
+
+        return $pdf->download($fileName);
     }
 }

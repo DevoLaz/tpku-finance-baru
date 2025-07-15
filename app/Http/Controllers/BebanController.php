@@ -8,13 +8,31 @@ use App\Models\ArusKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use PDF;
 
 class BebanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $bebans = Beban::with('kategori')->latest()->paginate(10);
-        return view('beban.index', compact('bebans'));
+        $query = Beban::query()->with('kategori');
+
+        // Menambahkan filter
+        if ($request->filled('dari')) {
+            $query->whereDate('tanggal', '>=', $request->dari);
+        }
+        if ($request->filled('sampai')) {
+            $query->whereDate('tanggal', '<=', $request->sampai);
+        }
+        if ($request->filled('kategori_id')) {
+            $query->where('kategori_id', $request->kategori_id);
+        }
+
+        $bebans = $query->latest()->paginate(15)->withQueryString();
+        $kategoris = Kategori::orderBy('nama_kategori')->get();
+
+        return view('beban.index', compact('bebans', 'kategoris'));
     }
 
     public function create()
@@ -50,12 +68,11 @@ class BebanController extends Controller
                 'kategori_id' => $validatedData['kategori_id'],
             ]);
 
-            // PERBAIKAN: Menyimpan deskripsi dari form ke kolom 'deskripsi' di tabel arus_kas
             ArusKas::create([
                 'tanggal' => $beban->tanggal,
                 'jumlah' => $beban->jumlah,
                 'tipe' => 'keluar',
-                'deskripsi' => $beban->nama, // Menggunakan nama beban sebagai deskripsi utama
+                'deskripsi' => $beban->nama,
                 'referensi_id' => $beban->id,
                 'referensi_tipe' => Beban::class,
             ]);
@@ -91,5 +108,39 @@ class BebanController extends Controller
             DB::rollBack();
             return back()->with('error', 'Gagal menghapus beban: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Handle PDF export request for expenses.
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = Beban::query()->with('kategori');
+
+        $dari = $request->input('dari');
+        $sampai = $request->input('sampai');
+        $kategori_id = $request->input('kategori_id');
+
+        // Apply filters
+        if ($dari) {
+            $query->whereDate('tanggal', '>=', $dari);
+        }
+        if ($sampai) {
+            $query->whereDate('tanggal', '<=', $sampai);
+        }
+        if ($kategori_id) {
+            $query->where('kategori_id', $kategori_id);
+        }
+
+        $bebans = $query->latest()->get();
+        $totalBeban = $bebans->sum('jumlah');
+        $kategoriNama = $kategori_id ? Kategori::find($kategori_id)->nama_kategori : 'Semua Kategori';
+
+        // Generate PDF
+        $pdf = PDF::loadView('beban.pdf', compact('bebans', 'totalBeban', 'dari', 'sampai', 'kategoriNama'));
+        
+        $fileName = 'laporan-beban-' . date('Y-m-d') . '.pdf';
+
+        return $pdf->download($fileName);
     }
 }

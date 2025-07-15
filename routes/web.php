@@ -11,12 +11,6 @@ use App\Http\Controllers\PengadaanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
-
 // Rute untuk autentikasi
 require __DIR__.'/auth.php';
 
@@ -34,25 +28,35 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // --- MODUL INPUT DATA ---
+    Route::get('pengadaan/export-pdf', [PengadaanController::class, 'exportPdf'])->name('pengadaan.exportPdf');
     Route::resource('pengadaan', PengadaanController::class);
+    
     Route::resource('aset-tetap', AsetTetapController::class);
+    
+    Route::get('transaksi/export-pdf', [TransactionController::class, 'exportPdf'])->name('transaksi.exportPdf');
     Route::resource('transaksi', TransactionController::class)->except(['edit', 'update']);
+    
+    Route::get('beban/export-pdf', [BebanController::class, 'exportPdf'])->name('beban.exportPdf');
     Route::resource('beban', BebanController::class)->except(['show', 'edit', 'update']);
+
     Route::resource('karyawan', KaryawanController::class);
 
     // --- MODUL LAPORAN ---
     Route::prefix('laporan')->name('laporan.')->group(function () {
         Route::get('/', [LaporanController::class, 'arusKas'])->name('index');
+        
         Route::get('/arus-kas', [LaporanController::class, 'arusKas'])->name('arus_kas');
+        Route::get('/arus-kas/export-pdf', [LaporanController::class, 'exportArusKasPdf'])->name('arus_kas.exportPdf');
+        
         Route::get('/laba-rugi', [LaporanController::class, 'labaRugi'])->name('laba_rugi');
+        Route::get('/laba-rugi/export-pdf', [LaporanController::class, 'exportLabaRugiPdf'])->name('laba_rugi.exportPdf');
+
         Route::get('/neraca', [LaporanController::class, 'neraca'])->name('neraca');
+        Route::get('/neraca/export-pdf', [LaporanController::class, 'exportNeracaPdf'])->name('neraca.exportPdf'); // <-- SENTUHAN AKHIR DI SINI
+
         Route::get('/analisis-penjualan', [LaporanController::class, 'analisisPenjualan'])->name('penjualan');
         
-        // Rute untuk Penggajian ada di dalam grup laporan
-        // URL akan menjadi: /laporan/penggajian, /laporan/penggajian/create, dll.
         Route::resource('penggajian', GajiController::class)->except(['show']);
-        
-        // Rute untuk Slip Gaji dibuat spesifik agar tidak bentrok
         Route::get('penggajian/{gaji}', [GajiController::class, 'show'])->name('slip_gaji');
     });
 });
