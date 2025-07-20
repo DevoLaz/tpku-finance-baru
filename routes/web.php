@@ -14,6 +14,8 @@ use App\Http\Controllers\TransactionController;
 // Rute untuk autentikasi
 require __DIR__.'/auth.php';
 
+
+Route::get('/transaksi/fetch-from-api', [TransactionController::class, 'fetchFromApi'])->name('transaksi.fetchApi');
 // Semua rute di bawah ini memerlukan login
 Route::middleware(['auth', 'verified'])->group(function () {
 

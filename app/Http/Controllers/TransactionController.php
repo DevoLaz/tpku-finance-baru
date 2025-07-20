@@ -9,10 +9,86 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Http;
 use PDF;
 
 class TransactionController extends Controller
 {
+
+
+ public function fetchFromApi()
+{
+    // Bagian kode untuk mengambil data dari API asli kita nonaktifkan sementara
+    // $apiUrl = 'http://127.0.0.1:8000/api/sales'; 
+
+    try {
+        // --- MULAI BLOK KODE UNTUK TESTING ---
+
+        // Cek dulu apakah file dummy-nya ada di storage/app/
+        if (!Storage::exists('dummy_sales_data.json')) {
+            return back()->with('error', 'File dummy testing (dummy_sales_data.json) tidak ditemukan.');
+        }
+
+        // Ambil konten dari file lokal
+        $jsonContent = Storage::get('dummy_sales_data.json');
+
+        // Ubah konten JSON (string) menjadi array PHP
+        $salesData = json_decode($jsonContent, true);
+
+        // --- SELESAI BLOK KODE UNTUK TESTING ---
+
+
+        // Logika di bawah ini tidak perlu diubah, karena akan memproses variabel $salesData
+        // baik dari API asli maupun dari file dummy.
+        
+        $newTransactionsCount = 0;
+        DB::beginTransaction();
+
+        foreach ($salesData as $sale) {
+            $existingTransaction = Transaction::where('api_sale_id', $sale['id'])->first();
+
+            if (!$existingTransaction) {
+                $keterangan = 'Penjualan oleh ' . ($sale['user']['name'] ?? 'N/A');
+                if (!empty($sale['customer_name'])) {
+                    $keterangan .= ' kepada ' . $sale['customer_name'];
+                }
+
+                $transaksi = Transaction::create([
+                    'api_sale_id'       => $sale['id'],
+                    'tanggal_transaksi' => Carbon::parse($sale['created_at'])->toDateString(),
+                    'total_penjualan'   => $sale['total_akhir'],
+                    'keterangan'        => $keterangan,
+                    'items_detail'      => json_encode($sale['items']),
+                ]);
+
+                ArusKas::create([
+                    'tanggal'        => $transaksi->tanggal_transaksi,
+                    'jumlah'         => $transaksi->total_penjualan,
+                    'tipe'           => 'masuk',
+                    'deskripsi'      => $keterangan,
+                    'referensi_id'   => $transaksi->id,
+                    'referensi_tipe' => Transaction::class,
+                ]);
+
+                $newTransactionsCount++;
+            }
+        }
+
+        DB::commit();
+
+        if ($newTransactionsCount > 0) {
+            return redirect()->route('transaksi.index')->with('success', "TESTING BERHASIL: {$newTransactionsCount} transaksi baru dari file lokal berhasil disinkronkan.");
+        } else {
+            return redirect()->route('transaksi.index')->with('success', 'TESTING: Tidak ada data transaksi baru dari file lokal untuk disinkronkan.');
+        }
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->with('error', 'Terjadi kesalahan saat sinkronisasi: ' . $e->getMessage());
+    }
+}
+
+
     public function index(Request $request)
     {
         $periode = $request->input('periode', 'bulanan');

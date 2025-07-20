@@ -19,6 +19,8 @@ class Transaction extends Model
         'total_penjualan',
         'keterangan',
         'bukti',
+        'api_sale_id',    // Ditambahkan untuk menyimpan ID dari API
+        'items_detail',   // Ditambahkan untuk menyimpan detail barang
     ];
 
     /**
@@ -28,5 +30,6 @@ class Transaction extends Model
      */
     protected $casts = [
         'tanggal_transaksi' => 'date',
+        'items_detail' => 'array', // Memberitahu Laravel bahwa kolom ini adalah JSON/array
     ];
 }
