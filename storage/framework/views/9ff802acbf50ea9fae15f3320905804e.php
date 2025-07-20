@@ -149,10 +149,27 @@
                                 </tr>
 
                                 
+                                
+                                
+
+                                
                                 <tr x-show="open" x-transition class="bg-gray-50" style="display: none;">
                                     <td colspan="6" class="p-0">
                                         <div class="p-4">
-                                            <?php if(!empty($transaction->items_detail) && is_array($transaction->items_detail)): ?>
+                                            <?php
+                                                // Decode string JSON. Mungkin ada double encoding.
+                                                $items = json_decode($transaction->items_detail);
+                                                if (is_string($items)) {
+                                                    // Jika masih string, decode lagi untuk dapat array.
+                                                    $items = json_decode($items, true);
+                                                } else {
+                                                    // Jika decode pertama berhasil, jadikan array.
+                                                    $items = (array) $items;
+                                                }
+                                            ?>
+
+                                            
+                                            <?php if(is_array($items) && !empty($items) && isset($items[0])): ?>
                                                 <h4 class="font-bold text-lg mb-2 text-gray-700">Detail Barang Terjual:</h4>
                                                 
                                                 <table class="w-full text-sm mt-2">
@@ -165,17 +182,19 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        <?php $__currentLoopData = $transaction->items_detail; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        
+                                                        <?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                            
+                                                            <?php $item = (array) $item; ?>
                                                             <tr class="border-b border-gray-200 last:border-b-0">
-                                                                <td class="py-3 px-3"><?php echo e($item['name']); ?></td>
-                                                                <td class="py-3 px-3 text-center"><?php echo e($item['qty']); ?></td>
-                                                                <td class="py-3 px-3 text-right">Rp <?php echo e(number_format($item['price'], 0, ',', '.')); ?></td>
-                                                                <td class="py-3 px-3 text-right font-medium">Rp <?php echo e(number_format($item['subtotal'], 0, ',', '.')); ?></td>
+                                                                <td class="py-3 px-3"><?php echo e($item['name'] ?? 'N/A'); ?></td>
+                                                                <td class="py-3 px-3 text-center"><?php echo e($item['qty'] ?? 'N/A'); ?></td>
+                                                                <td class="py-3 px-3 text-right">Rp <?php echo e(number_format($item['price'] ?? 0, 0, ',', '.')); ?></td>
+                                                                <td class="py-3 px-3 text-right font-medium">Rp <?php echo e(number_format($item['subtotal'] ?? 0, 0, ',', '.')); ?></td>
                                                             </tr>
                                                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                                     </tbody>
                                                 </table>
-
                                             <?php else: ?>
                                                 <p class="text-gray-500 italic p-4">Tidak ada detail barang untuk transaksi ini.</p>
                                             <?php endif; ?>
@@ -210,4 +229,5 @@
 <?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
 <?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
 <?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
-<?php endif; ?><?php /**PATH C:\tpku-finance-baru\resources\views/transaksi/index.blade.php ENDPATH**/ ?>
+<?php endif; ?>
+<?php /**PATH C:\tpku-finance-baru\resources\views/transaksi/index.blade.php ENDPATH**/ ?>

@@ -139,11 +139,28 @@
                                     </td>
                                 </tr>
 
+                                {{-- ====================================================== --}}
+                                {{-- == BAGIAN YANG DIPERBAIKI ADA DI BAWAH INI == --}}
+                                {{-- ====================================================== --}}
+
                                 {{-- Baris Detail Dropdown --}}
                                 <tr x-show="open" x-transition class="bg-gray-50" style="display: none;">
                                     <td colspan="6" class="p-0">
                                         <div class="p-4">
-                                            @if(!empty($transaction->items_detail) && is_array($transaction->items_detail))
+                                            @php
+                                                // Decode string JSON. Mungkin ada double encoding.
+                                                $items = json_decode($transaction->items_detail);
+                                                if (is_string($items)) {
+                                                    // Jika masih string, decode lagi untuk dapat array.
+                                                    $items = json_decode($items, true);
+                                                } else {
+                                                    // Jika decode pertama berhasil, jadikan array.
+                                                    $items = (array) $items;
+                                                }
+                                            @endphp
+
+                                            {{-- Cek apakah $items adalah array yang valid dan tidak kosong --}}
+                                            @if(is_array($items) && !empty($items) && isset($items[0]))
                                                 <h4 class="font-bold text-lg mb-2 text-gray-700">Detail Barang Terjual:</h4>
                                                 
                                                 <table class="w-full text-sm mt-2">
@@ -156,17 +173,19 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        @foreach($transaction->items_detail as $item)
+                                                        {{-- Loop menggunakan variabel $items yang sudah diperbaiki --}}
+                                                        @foreach($items as $item)
+                                                            {{-- Ubah item menjadi array untuk akses yang konsisten --}}
+                                                            @php $item = (array) $item; @endphp
                                                             <tr class="border-b border-gray-200 last:border-b-0">
-                                                                <td class="py-3 px-3">{{ $item['name'] }}</td>
-                                                                <td class="py-3 px-3 text-center">{{ $item['qty'] }}</td>
-                                                                <td class="py-3 px-3 text-right">Rp {{ number_format($item['price'], 0, ',', '.') }}</td>
-                                                                <td class="py-3 px-3 text-right font-medium">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</td>
+                                                                <td class="py-3 px-3">{{ $item['name'] ?? 'N/A' }}</td>
+                                                                <td class="py-3 px-3 text-center">{{ $item['qty'] ?? 'N/A' }}</td>
+                                                                <td class="py-3 px-3 text-right">Rp {{ number_format($item['price'] ?? 0, 0, ',', '.') }}</td>
+                                                                <td class="py-3 px-3 text-right font-medium">Rp {{ number_format($item['subtotal'] ?? 0, 0, ',', '.') }}</td>
                                                             </tr>
                                                         @endforeach
                                                     </tbody>
                                                 </table>
-
                                             @else
                                                 <p class="text-gray-500 italic p-4">Tidak ada detail barang untuk transaksi ini.</p>
                                             @endif
