@@ -74,17 +74,17 @@ class PengadaanController extends Controller
         try {
             $buktiPath = null;
             if ($request->hasFile('bukti')) {
-                // PERUBAHAN
                 $buktiPath = $request->file('bukti')->store('bukti_pengadaan', 'public_uploads');
             }
 
             $grandTotal = 0;
+            $pengadaanIds = []; // Untuk menyimpan ID pengadaan yang baru dibuat
 
             foreach ($validatedData['items'] as $itemData) {
                 $totalHargaItem = $itemData['jumlah_masuk'] * $itemData['harga_beli'];
                 $grandTotal += $totalHargaItem;
 
-                Pengadaan::create([
+                $pengadaan = Pengadaan::create([
                     'no_invoice' => $validatedData['no_invoice'],
                     'tanggal_pembelian' => $validatedData['tanggal_pembelian'],
                     'supplier_id' => $validatedData['supplier_id'],
@@ -95,17 +95,24 @@ class PengadaanController extends Controller
                     'harga_beli' => $itemData['harga_beli'],
                     'total_harga' => $totalHargaItem,
                 ]);
+                
+                // Simpan ID untuk referensi
+                $pengadaanIds[] = $pengadaan->id;
 
                 $barang = Barang::find($itemData['barang_id']);
                 $barang->increment('stok', $itemData['jumlah_masuk']);
             }
 
+            // --- PERBAIKAN DI SINI ---
+            // Sekarang kita mengisi referensi_tipe dan referensi_id
             ArusKas::create([
                 'tanggal' => $validatedData['tanggal_pembelian'],
                 'jumlah' => $grandTotal,
                 'tipe' => 'keluar',
                 'deskripsi' => 'Pembelian bahan baku (Invoice: ' . $validatedData['no_invoice'] . ')',
                 'kategori' => 'Operasional',
+                'referensi_tipe' => Pengadaan::class, // <-- Kolom ini ditambahkan
+                'referensi_id'   => $pengadaanIds[0] ?? null, // <-- Referensi ke pengadaan pertama dalam invoice
             ]);
 
             DB::commit();
@@ -114,7 +121,6 @@ class PengadaanController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             if (isset($buktiPath)) {
-                // PERUBAHAN
                 Storage::disk('public_uploads')->delete($buktiPath);
             }
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
@@ -131,7 +137,12 @@ class PengadaanController extends Controller
                 return back()->with('error', 'Invoice tidak ditemukan.');
             }
 
-            ArusKas::where('deskripsi', 'like', '%(Invoice: ' . $no_invoice . ')%')->delete();
+            // --- PERBAIKAN DI SINI ---
+            // Hapus ArusKas berdasarkan referensi_tipe dan referensi_id
+            $firstPengadaanId = $pengadaans->first()->id;
+            ArusKas::where('referensi_tipe', Pengadaan::class)
+                   ->where('referensi_id', $firstPengadaanId)
+                   ->delete();
 
             $buktiPath = $pengadaans->first()->bukti;
 
@@ -144,7 +155,6 @@ class PengadaanController extends Controller
             }
             
             if ($buktiPath) {
-                // PERUBAHAN
                 Storage::disk('public_uploads')->delete($buktiPath);
             }
 
@@ -187,17 +197,17 @@ class PengadaanController extends Controller
     }
 
     public function apiIndex()
-{
-    // 1. Ambil semua data dari tabel pengadaans menggunakan Model
-    $pengadaanData = Pengadaan::all();
+    {
+        // 1. Ambil semua data dari tabel pengadaans menggunakan Model
+        $pengadaanData = Pengadaan::all();
 
-    // 2. Susun data sesuai format JSON yang Anda inginkan
-    $response = [
-        'table' => 'pengadaans',
-        'rows'  => $pengadaanData
-    ];
+        // 2. Susun data sesuai format JSON yang Anda inginkan
+        $response = [
+            'table' => 'pengadaans',
+            'rows'  => $pengadaanData
+        ];
 
-    // 3. Kembalikan data sebagai respons JSON
-    return Response::json($response);
-}
+        // 3. Kembalikan data sebagai respons JSON
+        return Response::json($response);
+    }
 }

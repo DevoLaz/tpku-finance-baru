@@ -44,13 +44,22 @@ class LaporanController extends Controller
         $jumlahTransaksiMasuk = $arusKasPeriodeIni->where('tipe', 'masuk')->count();
         $jumlahTransaksiKeluar = $arusKasPeriodeIni->where('tipe', 'keluar')->count();
 
+        // ======================================================
+        // == PERBAIKAN LOGIKA ADA DI BAWAH INI ==
+        // ======================================================
+
         // 5. Pisahkan transaksi berdasarkan jenis aktivitas
         $operasionalMasuk = $arusKasPeriodeIni->where('tipe', 'masuk')->where('referensi_tipe', Transaction::class);
-        $operasionalKeluar = $arusKasPeriodeIni->where('tipe', 'keluar')->whereIn('referensi_tipe', [
-            Pengadaan::class, 
-            Gaji::class, 
-            Beban::class 
-        ]);
+        
+        // Menggunakan filter closure untuk mencakup SEMUA jenis pengeluaran operasional
+        $operasionalKeluar = $arusKasPeriodeIni->where('tipe', 'keluar')->filter(function ($item) {
+            return in_array($item->referensi_tipe, [
+                Pengadaan::class, 
+                Gaji::class, 
+                Beban::class
+            ]) || $item->kategori === 'Operasional'; // Ditambahkan pengecekan 'kategori'
+        });
+
         $investasi = $arusKasPeriodeIni->where('referensi_tipe', AsetTetap::class)->filter(fn ($item) => !str_contains(strtolower($item->deskripsi), 'modal'));
         $pendanaan = $arusKasPeriodeIni->where('referensi_tipe', AsetTetap::class)->filter(fn ($item) => str_contains(strtolower($item->deskripsi), 'modal'));
 
@@ -89,7 +98,7 @@ class LaporanController extends Controller
             'jumlahTransaksiMasuk', 'jumlahTransaksiKeluar',
             'operasionalMasuk', 'operasionalKeluar', 'investasi', 'pendanaan',
             'tahun', 'bulan', 'daftarTahun', 
-            'dataGrafikFormatted' // PERUBAHAN DI SINI
+            'dataGrafikFormatted'
         ));
     }
 
@@ -118,7 +127,16 @@ class LaporanController extends Controller
         $saldoAkhir = $saldoAwal + $totalKasMasuk - $totalKasKeluar;
 
         $operasionalMasuk = $arusKasPeriodeIni->where('tipe', 'masuk')->where('referensi_tipe', Transaction::class);
-        $operasionalKeluar = $arusKasPeriodeIni->where('tipe', 'keluar')->whereIn('referensi_tipe', [Pengadaan::class, Gaji::class, Beban::class]);
+        
+        // PERBAIKAN JUGA DI SINI untuk konsistensi data PDF
+        $operasionalKeluar = $arusKasPeriodeIni->where('tipe', 'keluar')->filter(function ($item) {
+            return in_array($item->referensi_tipe, [
+                Pengadaan::class, 
+                Gaji::class, 
+                Beban::class
+            ]) || $item->kategori === 'Operasional';
+        });
+
         $investasi = $arusKasPeriodeIni->where('referensi_tipe', AsetTetap::class)->filter(fn ($item) => !str_contains(strtolower($item->deskripsi), 'modal'));
         $pendanaan = $arusKasPeriodeIni->where('referensi_tipe', AsetTetap::class)->filter(fn ($item) => str_contains(strtolower($item->deskripsi), 'modal'));
 
@@ -176,9 +194,6 @@ class LaporanController extends Controller
         ));
     }
 
-    /**
-     * Handle PDF export request for Profit & Loss Statement.
-     */
     public function exportLabaRugiPdf(Request $request)
     {
         // Logika ini sama persis dengan method labaRugi
@@ -256,9 +271,6 @@ class LaporanController extends Controller
         ));
     }
 
-    /**
-     * Handle PDF export request for Balance Sheet.
-     */
     public function exportNeracaPdf(Request $request)
     {
         // Logika ini sama persis dengan method neraca
