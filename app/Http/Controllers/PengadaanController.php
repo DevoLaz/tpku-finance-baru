@@ -9,6 +9,7 @@ use App\Models\ArusKas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use PDF;
 
@@ -184,4 +185,19 @@ class PengadaanController extends Controller
 
         return $pdf->download($fileName);
     }
+
+    public function apiIndex()
+{
+    // 1. Ambil semua data dari tabel pengadaans menggunakan Model
+    $pengadaanData = Pengadaan::all();
+
+    // 2. Susun data sesuai format JSON yang Anda inginkan
+    $response = [
+        'table' => 'pengadaans',
+        'rows'  => $pengadaanData
+    ];
+
+    // 3. Kembalikan data sebagai respons JSON
+    return Response::json($response);
+}
 }
