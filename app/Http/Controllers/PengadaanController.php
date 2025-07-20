@@ -18,7 +18,6 @@ class PengadaanController extends Controller
     {
         $query = Pengadaan::query()->with('supplier', 'barang');
 
-        // PENYEMPURNAAN: Menambahkan logika filter yang sudah ada di view
         if ($request->filled('dari')) {
             $query->whereDate('tanggal_pembelian', '>=', $request->dari);
         }
@@ -26,7 +25,6 @@ class PengadaanController extends Controller
             $query->whereDate('tanggal_pembelian', '<=', $request->sampai);
         }
         if ($request->filled('barang_id')) {
-            // Jika filter barang dipilih, kita perlu mencari semua invoice yang mengandung barang tsb.
             $invoiceNumbers = Pengadaan::where('barang_id', $request->barang_id)->pluck('no_invoice')->unique();
             $query->whereIn('no_invoice', $invoiceNumbers);
         }
@@ -75,7 +73,8 @@ class PengadaanController extends Controller
         try {
             $buktiPath = null;
             if ($request->hasFile('bukti')) {
-                $buktiPath = $request->file('bukti')->store('public/bukti_pengadaan');
+                // PERUBAHAN
+                $buktiPath = $request->file('bukti')->store('bukti_pengadaan', 'public_uploads');
             }
 
             $grandTotal = 0;
@@ -114,7 +113,8 @@ class PengadaanController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             if (isset($buktiPath)) {
-                Storage::delete($buktiPath);
+                // PERUBAHAN
+                Storage::disk('public_uploads')->delete($buktiPath);
             }
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
         }
@@ -142,8 +142,9 @@ class PengadaanController extends Controller
                 $pengadaan->delete();
             }
             
-            if ($buktiPath && Storage::exists($buktiPath)) {
-                Storage::delete($buktiPath);
+            if ($buktiPath) {
+                // PERUBAHAN
+                Storage::disk('public_uploads')->delete($buktiPath);
             }
 
             DB::commit();
@@ -154,9 +155,6 @@ class PengadaanController extends Controller
         }
     }
 
-    /**
-     * Handle PDF export request for procurement.
-     */
     public function exportPdf(Request $request)
     {
         $query = Pengadaan::query()->with('supplier', 'barang');
@@ -164,7 +162,6 @@ class PengadaanController extends Controller
         $dari = $request->input('dari');
         $sampai = $request->input('sampai');
 
-        // Apply filters
         if ($dari) {
             $query->whereDate('tanggal_pembelian', '>=', $dari);
         }
@@ -181,7 +178,6 @@ class PengadaanController extends Controller
         
         $totalPengeluaran = $allPengadaans->sum('total_harga');
 
-        // Generate PDF
         $pdf = PDF::loadView('pengadaan.pdf', compact('pengadaansByInvoice', 'totalPengeluaran', 'dari', 'sampai'));
         
         $fileName = 'laporan-pengadaan-' . date('Y-m-d') . '.pdf';

@@ -75,7 +75,8 @@ class TransactionController extends Controller
         try {
             $buktiPath = null;
             if ($request->hasFile('bukti')) {
-                $buktiPath = $request->file('bukti')->store('public/bukti_transaksi');
+               // Menyimpan file ke public/bukti_transaksi menggunakan disk 'public_uploads'
+                $buktiPath = $request->file('bukti')->store('bukti_transaksi', 'public_uploads');
             }
             
             $validatedData['bukti'] = $buktiPath;
@@ -114,7 +115,7 @@ class TransactionController extends Controller
                    ->delete();
 
             if ($transaction->bukti) {
-                Storage::delete($transaction->bukti);
+                Storage::disk('public_uploads')->delete($transaction->bukti);
             }
 
             $transaction->delete();

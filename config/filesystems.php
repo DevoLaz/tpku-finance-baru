@@ -47,6 +47,13 @@ return [
             'report' => false,
         ],
 
+        'public_uploads' => [
+        'driver' => 'local',
+        'root' => public_path(), // Langsung menunjuk ke folder /public
+        'url' => env('APP_URL').'/',
+        'visibility' => 'public',
+        ],
+        
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -38,49 +38,46 @@ class AsetTetapController extends Controller
         try {
             $buktiPath = null;
             if ($request->hasFile('bukti')) {
-                $buktiPath = $request->file('bukti')->store('public/bukti_aset_tetap');
+                // PERUBAHAN: Menyimpan file ke public/bukti_aset_tetap
+                $buktiPath = $request->file('bukti')->store('bukti_aset_tetap', 'public_uploads');
             }
             
             $validatedData['bukti'] = $buktiPath;
 
             $asetTetap = AsetTetap::create($validatedData);
 
-            // PERBAIKAN LOGIKA: Cek apakah ini setoran modal atau pembelian aset
             if (str_contains(strtolower($request->kategori), 'kas') || str_contains(strtolower($request->nama_aset), 'modal')) {
-                 // Jika ini adalah modal, catat sebagai kas masuk
-                 ArusKas::create([
+                ArusKas::create([
                     'tanggal' => $request->tanggal_perolehan,
                     'keterangan' => 'Setoran Modal: ' . $request->nama_aset,
                     'deskripsi' => $request->deskripsi ?: 'Setoran modal awal atau tambahan',
-                    'jumlah' => $request->harga_perolehan, // Nilai positif
-                    'tipe' => 'masuk', // Tipe: MASUK
+                    'jumlah' => $request->harga_perolehan,
+                    'tipe' => 'masuk',
                     'kategori' => 'Pendanaan',
                     'referensi_id' => $asetTetap->id,
                     'referensi_tipe' => AsetTetap::class,
                 ]);
             } else if ($request->harga_perolehan > 0) {
-                // Jika ini adalah pembelian aset, catat sebagai kas keluar
                 ArusKas::create([
                     'tanggal' => $request->tanggal_perolehan,
                     'keterangan' => 'Pembelian Aset: ' . $request->nama_aset,
                     'deskripsi' => $request->deskripsi ?: 'Pembelian aset ' . $request->nama_aset,
-                    'jumlah' => $request->harga_perolehan, // Nilai tetap positif
-                    'tipe' => 'keluar', // Tipe: KELUAR
+                    'jumlah' => $request->harga_perolehan,
+                    'tipe' => 'keluar',
                     'kategori' => 'Investasi',
                     'referensi_id' => $asetTetap->id,
                     'referensi_tipe' => AsetTetap::class,
                 ]);
             }
 
-
             DB::commit();
             return redirect()->route('aset-tetap.index')->with('success', 'Aset tetap berhasil ditambahkan.');
         } catch (\Exception $e) {
             DB::rollBack();
             if (isset($buktiPath) && $buktiPath) {
-                Storage::delete($buktiPath);
+                // PERUBAHAN: Menggunakan disk yang benar jika terjadi error
+                Storage::disk('public_uploads')->delete($buktiPath);
             }
-            // Mengembalikan pesan error yang lebih jelas ke view
             return back()->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage())->withInput();
         }
     }
@@ -100,9 +97,11 @@ class AsetTetapController extends Controller
 
         if ($request->hasFile('bukti')) {
             if ($asetTetap->bukti) {
-                Storage::delete($asetTetap->bukti);
+                // PERUBAHAN: Menggunakan disk yang benar untuk menghapus file lama
+                Storage::disk('public_uploads')->delete($asetTetap->bukti);
             }
-            $validatedData['bukti'] = $request->file('bukti')->store('public/bukti_aset_tetap');
+            // PERUBAHAN: Menyimpan file baru ke public/bukti_aset_tetap
+            $validatedData['bukti'] = $request->file('bukti')->store('bukti_aset_tetap', 'public_uploads');
         }
 
         $asetTetap->update($validatedData);
@@ -115,12 +114,13 @@ class AsetTetapController extends Controller
         DB::beginTransaction();
         try {
             if ($asetTetap->bukti) {
-                Storage::delete($asetTetap->bukti);
+                // PERUBAHAN: Menggunakan disk yang benar untuk menghapus
+                Storage::disk('public_uploads')->delete($asetTetap->bukti);
             }
             
             ArusKas::where('referensi_tipe', AsetTetap::class)
-                   ->where('referensi_id', $asetTetap->id)
-                   ->delete();
+                     ->where('referensi_id', $asetTetap->id)
+                     ->delete();
 
             $asetTetap->delete();
             DB::commit();

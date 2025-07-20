@@ -27,7 +27,9 @@ class DashboardController extends Controller
         $endOfMonth = $now->copy()->endOfMonth();
         
         // ===== DATA UNTUK KARTU METRIK UTAMA =====
-        $totalKas = ArusKas::sum('jumlah');
+        $totalKasMasuk = ArusKas::where('tipe', 'masuk')->sum('jumlah');
+        $totalKasKeluar = ArusKas::where('tipe', 'keluar')->sum('jumlah');
+        $totalKas = $totalKasMasuk - $totalKasKeluar;
         $totalAset = AsetTetap::where('masa_manfaat', '>', 0)->get()->sum('nilai_buku');
         $totalKaryawan = Karyawan::where('aktif', true)->count();
 

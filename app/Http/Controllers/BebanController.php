@@ -56,8 +56,8 @@ class BebanController extends Controller
         try {
             $buktiPath = null;
             if ($request->hasFile('bukti')) {
-                $buktiPath = $request->file('bukti')->store('public/bukti_beban');
-            }
+                $buktiPath = $request->file('bukti')->store('bukti_beban', 'public_uploads');          
+              }
 
             $beban = Beban::create([
                 'tanggal' => $validatedData['tanggal'],
