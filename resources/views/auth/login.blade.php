@@ -51,13 +51,22 @@
                 </div>
 
 
-                <div>
+                <div class="!mt-6">
                     <button type="submit"
                             class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-[#173720] hover:bg-[#155c30] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600">
                         Login
                     </button>
                 </div>
             </form>
+
+            {{-- Link untuk registrasi ditambahkan di sini --}}
+            <p class="!mt-4 text-center text-sm text-gray-600">
+                Belum punya akun?
+                <a href="{{ route('register') }}" class="font-medium text-green-600 hover:text-green-500">
+                    Daftar di sini
+                </a>
+            </p>
+
         </div>
     </div>
 </x-guest-layout>
