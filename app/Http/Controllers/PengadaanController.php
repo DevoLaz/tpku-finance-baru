@@ -205,6 +205,7 @@ class PengadaanController extends Controller
     $rows = $pengadaanData->map(function ($pengadaan) {
         $data = $pengadaan->toArray();
         $data['barang'] = $pengadaan->barang; // tambahkan data barang
+        $data['supplier'] = $pengadaan->supplier; // tambahkan data supplier
         return $data;
     });
 
