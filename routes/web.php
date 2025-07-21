@@ -10,12 +10,15 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\PengadaanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\BarangController;
 
 // Rute untuk autentikasi
 require __DIR__.'/auth.php';
 
 
 Route::get('/transaksi/fetch-from-api', [TransactionController::class, 'fetchFromApi'])->name('transaksi.fetchApi');
+Route::get('/barangs/fetch', [BarangController::class, 'fetchFromApi'])->name('barangs.fetchApi');
+
 // Semua rute di bawah ini memerlukan login
 Route::middleware(['auth', 'verified'])->group(function () {
 
