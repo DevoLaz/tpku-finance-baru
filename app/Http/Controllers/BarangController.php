@@ -6,7 +6,7 @@ use App\Models\Barang;
 use App\Models\Kategori;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Http; // <-- Pastikan ini ada
 use Illuminate\Support\Facades\Storage;
 
 class BarangController extends Controller
@@ -14,11 +14,17 @@ class BarangController extends Controller
     public function fetchFromApi()
     {
         try {
-            if (!Storage::exists('dummy_barangs_data.json')) {
-                return back()->with('error', 'File dummy testing (dummy_barangs_data.json) tidak ditemukan.');
+            // 1. Mengambil data dari API
+            $response = Http::get('http://143.198.91.106/api/barang/mentah');
+
+            // Cek jika request ke API gagal
+            if ($response->failed()) {
+                // Langsung hentikan proses jika API tidak bisa diakses
+                return back()->with('error', 'Gagal mengambil data dari API. Status: ' . $response->status());
             }
-            $jsonContent = Storage::get('dummy_barangs_data.json');
-            $apiResponse = json_decode($jsonContent, true);
+            
+            // 2. Mengambil data dari respons JSON
+            $apiResponse = $response->json();
             $barangsData = $apiResponse['data'] ?? [];
 
             if (empty($barangsData)) {
@@ -30,33 +36,31 @@ class BarangController extends Controller
             DB::beginTransaction();
 
             foreach ($barangsData as $item) {
-                $barang = Barang::where('kode_barang', $item['kode_barang'])->first();
-
-                // --- PERBAIKAN DI SINI ---
-                // Mengganti 'nama' menjadi 'nama_kategori' agar cocok dengan database
+                // Mencari atau membuat kategori baru jika belum ada
                 $kategori = Kategori::firstOrCreate(
-                    ['nama_kategori' => $item['kategori_barang']] // <-- Diubah di sini
+                    ['nama_kategori' => $item['kategori_barang']]
                 );
 
-                if (!$barang) {
-                    Barang::create([
-                        'kode_barang' => $item['kode_barang'],
+                // 3. Menyederhanakan logika dengan updateOrCreate
+                // Jika barang ada, update. Jika tidak, buat baru.
+                $barang = Barang::updateOrCreate(
+                    [
+                        'kode_barang' => $item['kode_barang'] // Kondisi untuk mencari barang
+                    ],
+                    [
                         'nama' => $item['nama_barang'],
                         'kategori_id' => $kategori->id,
                         'stok' => $item['stok_barang'],
                         'unit' => $item['unit_barang'],
-                        'jenis_lain' => $item['jenis_barang'],
-                        'harga_jual' => 0,
-                    ]);
+                        'jenis_kain' => $item['jenis_barang'] ?? null, // Menggunakan 'jenis_kain' dan memberi nilai default
+                        'harga_jual' => 0, // Sesuai kode lama, harga jual diset 0
+                    ]
+                );
+                
+                // Menghitung jumlah data baru dan yang diupdate
+                if ($barang->wasRecentlyCreated) {
                     $newCount++;
-                } else {
-                    $barang->update([
-                        'nama' => $item['nama_barang'],
-                        'kategori_id' => $kategori->id,
-                        'stok' => $item['stok_barang'],
-                        'unit' => $item['unit_barang'],
-                        'jenis_lain' => $item['jenis_barang'],
-                    ]);
+                } elseif ($barang->wasChanged()) {
                     $updatedCount++;
                 }
             }
@@ -68,7 +72,8 @@ class BarangController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan saat sinkronisasi data barang: ' . $e->getMessage());
+            // Memberi pesan error yang lebih spesifik
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 }
