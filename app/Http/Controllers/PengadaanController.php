@@ -197,17 +197,23 @@ class PengadaanController extends Controller
     }
 
     public function apiIndex()
-    {
-        // 1. Ambil semua data dari tabel pengadaans menggunakan Model
-        $pengadaanData = Pengadaan::all();
+{
+    // 1. Ambil semua data dari tabel pengadaans beserta relasi barang
+    $pengadaanData = Pengadaan::with('barang')->get();
 
-        // 2. Susun data sesuai format JSON yang Anda inginkan
-        $response = [
-            'table' => 'pengadaans',
-            'rows'  => $pengadaanData
-        ];
+    // 2. Susun data sesuai format JSON yang diinginkan
+    $rows = $pengadaanData->map(function ($pengadaan) {
+        $data = $pengadaan->toArray();
+        $data['barang'] = $pengadaan->barang; // tambahkan data barang
+        return $data;
+    });
 
-        // 3. Kembalikan data sebagai respons JSON
-        return Response::json($response);
-    }
+    $response = [
+        'table' => 'pengadaans',
+        'rows'  => $rows
+    ];
+
+    // 3. Kembalikan data sebagai respons JSON
+    return Response::json($response);
+}
 }
