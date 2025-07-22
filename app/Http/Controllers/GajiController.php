@@ -81,7 +81,7 @@ class GajiController extends Controller
     // 6. Catat sebagai pengeluaran di buku kas
     ArusKas::create([
         'tanggal' => Carbon::now(),
-        'jumlah' => $gaji->gaji_bersih * -1,
+        'jumlah' => $gaji->gaji_bersih,
         'tipe' => 'keluar',
         'deskripsi' => "Pembayaran Gaji {$karyawan->nama_lengkap} - Periode " . Carbon::parse($gaji->periode)->isoFormat('MMMM Y'),
         'referensi_id' => $gaji->id,
