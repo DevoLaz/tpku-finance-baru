@@ -13,9 +13,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PDF;
+// --- DITAMBAHKAN ---
+use App\Exports\ArusKasExport;
+use App\Exports\LabaRugiExport;
+use App\Exports\NeracaExport;
+use Maatwebsite\Excel\Facades\Excel;
+// --- SELESAI PENAMBAHAN ---
 
 class LaporanController extends Controller
 {
+    // ... SEMUA FUNGSI LAMA ANDA (arusKas, labaRugi, neraca, dan PDF exports) TETAP DI SINI ...
+    // ... Saya tidak menampilkannya lagi agar tidak terlalu panjang, cukup tambahkan kode di bawah ini ...
+
     public function arusKas(Request $request)
     {
         // 1. Tentukan periode filter
@@ -310,5 +319,109 @@ class LaporanController extends Controller
         
         $fileName = 'laporan-neraca-per-' . $tanggalLaporan . '.pdf';
         return $pdf->download($fileName);
+    }
+    
+    // ======================================================
+    // == FUNGSI-FUNGSI BARU UNTUK EKSPOR EXCEL ==
+    // ======================================================
+
+    public function exportArusKasExcel(Request $request)
+    {
+        // Menggunakan logika yang sama persis dengan method arusKas()
+        $tahun = $request->input('tahun', date('Y'));
+        $bulan = $request->input('bulan');
+
+        if ($bulan) {
+            $tanggalAwalPeriode = Carbon::create($tahun, (int)$bulan, 1)->startOfMonth();
+            $tanggalAkhirPeriode = $tanggalAwalPeriode->copy()->endOfMonth();
+            $judulPeriode = $tanggalAwalPeriode->format('F Y');
+        } else {
+            $tanggalAwalPeriode = Carbon::create($tahun, 1, 1)->startOfYear();
+            $tanggalAkhirPeriode = $tanggalAwalPeriode->copy()->endOfYear();
+            $judulPeriode = 'Tahun ' . $tahun;
+        }
+
+        $saldoAwal = ArusKas::where('tanggal', '<', $tanggalAwalPeriode->toDateString())->sum(DB::raw('CASE WHEN tipe = "masuk" THEN jumlah ELSE -jumlah END'));
+        $arusKasPeriodeIni = ArusKas::whereBetween('tanggal', [$tanggalAwalPeriode, $tanggalAkhirPeriode])->orderBy('tanggal')->orderBy('id')->get();
+        $saldoAkhir = $saldoAwal + $arusKasPeriodeIni->where('tipe', 'masuk')->sum('jumlah') - $arusKasPeriodeIni->where('tipe', 'keluar')->sum('jumlah');
+        $operasionalMasuk = $arusKasPeriodeIni->where('tipe', 'masuk')->where('referensi_tipe', Transaction::class);
+        $operasionalKeluar = $arusKasPeriodeIni->where('tipe', 'keluar')->filter(function ($item) {
+            return in_array($item->referensi_tipe, [Pengadaan::class, Gaji::class, Beban::class]) || $item->kategori === 'Operasional';
+        });
+        $investasi = $arusKasPeriodeIni->where('referensi_tipe', AsetTetap::class)->filter(fn ($item) => !str_contains(strtolower($item->deskripsi), 'modal'));
+        $pendanaan = $arusKasPeriodeIni->where('referensi_tipe', AsetTetap::class)->filter(fn ($item) => str_contains(strtolower($item->deskripsi), 'modal'));
+
+        $fileName = 'laporan-arus-kas-' . Str::slug($judulPeriode) . '.xlsx';
+
+        return Excel::download(new ArusKasExport(
+            $judulPeriode, $saldoAwal, $saldoAkhir,
+            $operasionalMasuk, $operasionalKeluar, $investasi, $pendanaan
+        ), $fileName);
+    }
+
+    public function exportLabaRugiExcel(Request $request)
+    {
+        // Menggunakan logika yang sama persis dengan method labaRugi()
+        $bulan = $request->input('bulan', date('m'));
+        $tahun = $request->input('tahun', date('Y'));
+        $tanggalAwal = Carbon::create($tahun, (int)$bulan, 1)->startOfMonth();
+        $tanggalAkhir = $tanggalAwal->copy()->endOfMonth();
+        $judulPeriode = 'Untuk Periode yang Berakhir pada ' . $tanggalAkhir->format('d F Y');
+        $pendapatanItems = Transaction::whereBetween('tanggal_transaksi', [$tanggalAwal, $tanggalAkhir])->get();
+        $totalPendapatan = $pendapatanItems->sum('total_penjualan');
+        $hppItems = Pengadaan::whereBetween('tanggal_pembelian', [$tanggalAwal, $tanggalAkhir])->get();
+        $gajiItems = Gaji::whereYear('created_at', $tahun)->whereMonth('created_at', $bulan)->get();
+        $bebanItems = Beban::whereBetween('tanggal', [$tanggalAwal, $tanggalAkhir])->get();
+        $asetFisik = AsetTetap::where('masa_manfaat', '>', 0)->get();
+        $totalBebanPenyusutan = 0;
+        foreach ($asetFisik as $aset) {
+            $penyusutanPerBulan = ($aset->harga_perolehan - $aset->nilai_residu) / ($aset->masa_manfaat * 12);
+            $totalBebanPenyusutan += $penyusutanPerBulan;
+        }
+        $labaBersih = $totalPendapatan - ($hppItems->sum('total_harga') + $gajiItems->sum('gaji_bersih') + $bebanItems->sum('jumlah') + $totalBebanPenyusutan);
+
+        $fileName = 'laporan-laba-rugi-' . $tahun . '-' . str_pad($bulan, 2, '0', STR_PAD_LEFT) . '.xlsx';
+
+        return Excel::download(new LabaRugiExport(
+            $judulPeriode, $pendapatanItems, $totalPendapatan,
+            $hppItems, $gajiItems, $bebanItems, $totalBebanPenyusutan, $labaBersih
+        ), $fileName);
+    }
+
+    public function exportNeracaExcel(Request $request)
+    {
+        // Menggunakan logika yang sama persis dengan method neraca()
+        $tanggalLaporan = $request->input('tanggal', date('Y-m-d'));
+        $tanggalObj = Carbon::parse($tanggalLaporan)->endOfDay();
+        $kas = ArusKas::where('created_at', '<=', $tanggalObj)->sum(DB::raw('CASE WHEN tipe = "masuk" THEN jumlah ELSE -jumlah END'));
+        $asetTetapItems = AsetTetap::where('tanggal_perolehan', '<=', $tanggalObj)->get();
+        $totalAkumulasiPenyusutan = 0;
+        foreach ($asetTetapItems as $aset) {
+            if ($aset->masa_manfaat > 0) {
+                $penyusutan_per_bulan = ($aset->harga_perolehan - $aset->nilai_residu) / ($aset->masa_manfaat * 12);
+                $bulan_berlalu = $aset->tanggal_perolehan->diffInMonths($tanggalObj);
+                $akumulasi = $penyusutan_per_bulan * $bulan_berlalu;
+                $totalAkumulasiPenyusutan += min($akumulasi, $aset->harga_perolehan - $aset->nilai_residu);
+            }
+        }
+        $asetFisikItems = $asetTetapItems->where('masa_manfaat', '>', 0);
+        $modalDisetorItems = $asetTetapItems->where('masa_manfaat', '=', 0);
+        $totalAset = $kas + ($asetFisikItems->sum('harga_perolehan') - $totalAkumulasiPenyusutan);
+        $totalLiabilitas = 0;
+        $modalDisetor = $modalDisetorItems->sum('harga_perolehan');
+        $totalPendapatan = Transaction::where('tanggal_transaksi', '<=', $tanggalLaporan)->sum('total_penjualan');
+        $totalHpp = Pengadaan::where('tanggal_pembelian', '<=', $tanggalLaporan)->sum('total_harga');
+        $totalBebanLain = Beban::where('tanggal', '<=', $tanggalLaporan)->sum('jumlah');
+        $totalBebanGaji = Gaji::where('created_at', '<=', $tanggalObj)->sum('gaji_bersih');
+        $labaDitahan = $totalPendapatan - ($totalHpp + $totalBebanLain + $totalBebanGaji + $totalAkumulasiPenyusutan);
+        $totalEkuitas = $modalDisetor + $labaDitahan;
+        $totalLiabilitasEkuitas = $totalLiabilitas + $totalEkuitas;
+
+        $fileName = 'laporan-neraca-per-' . $tanggalLaporan . '.xlsx';
+        
+        return Excel::download(new NeracaExport(
+            $tanggalLaporan, $kas, $asetFisikItems, $totalAkumulasiPenyusutan, $totalAset,
+            $totalLiabilitas, $modalDisetorItems, $labaDitahan, $totalEkuitas, $totalLiabilitasEkuitas
+        ), $fileName);
     }
 }

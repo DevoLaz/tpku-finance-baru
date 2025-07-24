@@ -21,6 +21,14 @@ Route::get('/barangs/fetch', [BarangController::class, 'fetchFromApi'])->name('b
 
 // Semua rute di bawah ini memerlukan login
 Route::middleware(['auth', 'verified'])->group(function () {
+    
+    // Rute untuk ekspor transaksi ke Excel
+    Route::get('/transaksi/export-excel', [TransactionController::class, 'exportExcel'])->name('transaksi.exportExcel');
+    Route::get('pengadaan/export-excel', [PengadaanController::class, 'exportExcel'])->name('pengadaan.exportExcel');
+    Route::get('beban/export-excel', [BebanController::class, 'exportExcel'])->name('beban.exportExcel');
+    Route::get('/laporan/arus-kas/export-excel', [LaporanController::class, 'exportArusKasExcel'])->name('laporan.arusKas.exportExcel');
+    Route::get('/laporan/laba-rugi/export-excel', [LaporanController::class, 'exportLabaRugiExcel'])->name('laporan.labaRugi.exportExcel');
+    Route::get('/laporan/neraca/export-excel', [LaporanController::class, 'exportNeracaExcel'])->name('laporan.neraca.exportExcel');
 
     // --- RUTE DASAR ---
     Route::get('/', fn() => redirect()->route('dashboard'));

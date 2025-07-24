@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use PDF;
+use App\Exports\PengadaansExport; // --- DITAMBAHKAN ---
+use Maatwebsite\Excel\Facades\Excel; // --- DITAMBAHKAN ---
 
 class PengadaanController extends Controller
 {
@@ -194,6 +196,34 @@ class PengadaanController extends Controller
         $fileName = 'laporan-pengadaan-' . date('Y-m-d') . '.pdf';
 
         return $pdf->download($fileName);
+    }
+
+
+     public function exportExcel(Request $request)
+    {
+        $query = Pengadaan::query()->with('supplier', 'barang');
+
+        $dari = $request->input('dari');
+        $sampai = $request->input('sampai');
+
+        if ($dari) {
+            $query->whereDate('tanggal_pembelian', '>=', $dari);
+        }
+        if ($sampai) {
+            $query->whereDate('tanggal_pembelian', '<=', $sampai);
+        }
+        if ($request->filled('barang_id')) {
+            $invoiceNumbers = Pengadaan::where('barang_id', $request->barang_id)->pluck('no_invoice')->unique();
+            $query->whereIn('no_invoice', $invoiceNumbers);
+        }
+
+        $allPengadaans = $query->latest('tanggal_pembelian')->get();
+        $pengadaansByInvoice = $allPengadaans->groupBy('no_invoice');
+        $totalPengeluaran = $allPengadaans->sum('total_harga');
+        
+        $fileName = 'laporan-pengadaan-bahan-' . date('Y-m-d') . '.xlsx';
+
+        return Excel::download(new PengadaansExport($pengadaansByInvoice, $totalPengeluaran), $fileName);
     }
 
     public function apiIndex()

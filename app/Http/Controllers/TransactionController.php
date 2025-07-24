@@ -9,8 +9,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Http; // Pastikan ini di-import
+use Illuminate\Support\Facades\Http;
 use PDF;
+use App\Exports\TransactionsExport; // --- DITAMBAHKAN ---
+use Maatwebsite\Excel\Facades\Excel; // --- DITAMBAHKAN ---
 
 class TransactionController extends Controller
 {
@@ -20,7 +22,7 @@ class TransactionController extends Controller
     public function fetchFromApi()
     {
         // Ganti dengan URL API penjualan Anda yang sebenarnya
-        $apiUrl = 'http://152.42.182.221/api/api/sales/json'; 
+        $apiUrl = 'http://152.42.182.221/api/api/sales/json';
 
         try {
             // --- BLOK KODE UNTUK MENGAMBIL DATA DARI API ASLI ---
@@ -94,7 +96,7 @@ class TransactionController extends Controller
     {
         $periode = $request->input('periode', 'bulanan');
         $tanggal = $request->input('tanggal', date('Y-m-d'));
-        $bulan = (int)$request->input('bulan', date('m')); 
+        $bulan = (int)$request->input('bulan', date('m'));
         $tahun = $request->input('tahun', date('Y'));
 
         $query = Transaction::query();
@@ -228,5 +230,32 @@ class TransactionController extends Controller
         $fileName = 'laporan-penjualan-' . Str::slug($judulPeriode) . '.pdf';
 
         return $pdf->download($fileName);
+    }
+    
+    // --- FUNGSI BARU UNTUK EXPORT EXCEL --- //
+    public function exportExcel(Request $request)
+    {
+        $periode = $request->input('periode', 'bulanan');
+        $tanggal = $request->input('tanggal', date('Y-m-d'));
+        $bulan = (int)$request->input('bulan', date('m'));
+        $tahun = $request->input('tahun', date('Y'));
+    
+        $query = Transaction::query();
+    
+        if ($periode == 'harian') {
+            $query->whereDate('tanggal_transaksi', $tanggal);
+            $judulPeriode = Carbon::parse($tanggal)->format('d-m-Y');
+        } else { // bulanan
+            $query->whereMonth('tanggal_transaksi', $bulan)->whereYear('tanggal_transaksi', $tahun);
+            $judulPeriode = Carbon::create()->month($bulan)->format('F') . ' ' . $tahun;
+        }
+    
+        $transactions = $query->latest('tanggal_transaksi')->get();
+
+        $totalPemasukan = $transactions->sum('total_penjualan');
+    
+        $fileName = 'laporan-penjualan-' . Str::slug($judulPeriode) . '.xlsx';
+    
+        return Excel::download(new TransactionsExport($transactions, $totalPemasukan), $fileName);
     }
 }

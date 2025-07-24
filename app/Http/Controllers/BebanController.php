@@ -11,9 +11,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use PDF;
+use App\Exports\BebansExport; // --- DITAMBAHKAN ---
+use Maatwebsite\Excel\Facades\Excel; // --- DITAMBAHKAN ---
 
 class BebanController extends Controller
 {
+    // ... (fungsi index, create, store, destroy, exportPdf tetap sama) ...
     public function index(Request $request)
     {
         $query = Beban::query()->with('kategori');
@@ -56,8 +59,8 @@ class BebanController extends Controller
         try {
             $buktiPath = null;
             if ($request->hasFile('bukti')) {
-                $buktiPath = $request->file('bukti')->store('bukti_beban', 'public_uploads');          
-              }
+                $buktiPath = $request->file('bukti')->store('bukti_beban', 'public_uploads');
+            }
 
             $beban = Beban::create([
                 'tanggal' => $validatedData['tanggal'],
@@ -96,7 +99,7 @@ class BebanController extends Controller
             if ($beban->bukti) {
                 Storage::delete($beban->bukti);
             }
-            
+
             ArusKas::where('referensi_tipe', Beban::class)
                    ->where('referensi_id', $beban->id)
                    ->delete();
@@ -110,9 +113,6 @@ class BebanController extends Controller
         }
     }
 
-    /**
-     * Handle PDF export request for expenses.
-     */
     public function exportPdf(Request $request)
     {
         $query = Beban::query()->with('kategori');
@@ -138,9 +138,34 @@ class BebanController extends Controller
 
         // Generate PDF
         $pdf = PDF::loadView('beban.pdf', compact('bebans', 'totalBeban', 'dari', 'sampai', 'kategoriNama'));
-        
+
         $fileName = 'laporan-beban-' . date('Y-m-d') . '.pdf';
 
         return $pdf->download($fileName);
     }
+    
+    // --- FUNGSI BARU UNTUK EXPORT EXCEL --- //
+    public function exportExcel(Request $request)
+    {
+        $query = Beban::query()->with('kategori');
+
+        // Apply filters
+        if ($request->filled('dari')) {
+            $query->whereDate('tanggal', '>=', $request->dari);
+        }
+        if ($request->filled('sampai')) {
+            $query->whereDate('tanggal', '<=', $request->sampai);
+        }
+        if ($request->filled('kategori_id')) {
+            $query->where('kategori_id', $request->kategori_id);
+        }
+
+        $bebans = $query->latest()->get();
+        $totalBeban = $bebans->sum('jumlah');
+        
+        $fileName = 'laporan-beban-operasional-' . date('Y-m-d') . '.xlsx';
+
+        return Excel::download(new BebansExport($bebans, $totalBeban), $fileName);
+    }
+    // --- SELESAI FUNGSI BARU --- //
 }
