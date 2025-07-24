@@ -164,20 +164,39 @@ class LaporanController extends Controller
         $tahun = $request->input('tahun', date('Y'));
         $tanggalAwal = Carbon::create($tahun, (int)$bulan, 1)->startOfMonth();
         $tanggalAkhir = $tanggalAwal->copy()->endOfMonth();
+
+        // 1. Ambil Pendapatan
         $pendapatanItems = Transaction::whereBetween('tanggal_transaksi', [$tanggalAwal, $tanggalAkhir])->get();
         $totalPendapatan = $pendapatanItems->sum('total_penjualan');
-        $hppItems = Pengadaan::whereBetween('tanggal_pembelian', [$tanggalAwal, $tanggalAkhir])->get();
+
+        // === PERBAIKAN LOGIKA DIMULAI DI SINI ===
+
+        // 2. Ambil HPP (HANYA dari pengadaan yang BUKAN aset)
+        // Kita filter berdasarkan kategori barang. Asumsi: Kategori 'Aset Tetap' ada.
+        $hppItems = Pengadaan::whereBetween('tanggal_pembelian', [$tanggalAwal, $tanggalAkhir])
+            ->whereHas('barang.kategori', function ($query) {
+                // Ambil semua yang BUKAN 'Aset Tetap' atau kategori investasi lainnya
+                $query->where('nama', '!=', 'Aset Tetap'); 
+            })->get();
+        
+        // 3. Ambil Beban Operasional Lainnya
         $gajiItems = Gaji::whereYear('created_at', $tahun)->whereMonth('created_at', $bulan)->get();
         $bebanItems = Beban::whereBetween('tanggal', [$tanggalAwal, $tanggalAkhir])->get();
+
+        // 4. Hitung Beban Penyusutan (logika ini sudah benar)
         $asetFisik = AsetTetap::where('masa_manfaat', '>', 0)->get();
         $totalBebanPenyusutan = 0;
         foreach ($asetFisik as $aset) {
-            $penyusutanPerBulan = ($aset->harga_perolehan - $aset->nilai_residu) / ($aset->masa_manfaat * 12);
-            $totalBebanPenyusutan += $penyusutanPerBulan;
+            if ($aset->masa_manfaat > 0) {
+                 $penyusutanPerBulan = ($aset->harga_perolehan - $aset->nilai_residu) / ($aset->masa_manfaat * 12);
+                 $totalBebanPenyusutan += $penyusutanPerBulan;
+            }
         }
+
+        // 5. Gabungkan SEMUA beban menjadi satu collection
         $pengeluaran = collect([]);
         $hppItems->each(function ($item) use ($pengeluaran) {
-            $pengeluaran->push(['tanggal' => $item->tanggal_pembelian, 'keterangan' => 'HPP: ' . $item->barang->nama, 'kategori' => 'HPP', 'jumlah' => $item->total_harga]);
+            $pengeluaran->push(['tanggal' => $item->tanggal_pembelian, 'keterangan' => 'Beban Pokok: ' . $item->barang->nama, 'kategori' => 'HPP', 'jumlah' => $item->total_harga]);
         });
         $gajiItems->each(function ($item) use ($pengeluaran) {
             $pengeluaran->push(['tanggal' => $item->created_at, 'keterangan' => 'Gaji: ' . $item->karyawan->nama, 'kategori' => 'Beban Gaji', 'jumlah' => $item->gaji_bersih]);
@@ -188,13 +207,18 @@ class LaporanController extends Controller
         if ($totalBebanPenyusutan > 0) {
             $pengeluaran->push(['tanggal' => $tanggalAkhir, 'keterangan' => 'Beban Penyusutan Aset Tetap', 'kategori' => 'Beban Penyusutan', 'jumlah' => $totalBebanPenyusutan]);
         }
+        
+        // === SELESAI PERBAIKAN LOGIKA ===
+
         $pengeluaran = $pengeluaran->sortBy('tanggal');
         $totalPengeluaran = $pengeluaran->sum('jumlah');
         $labaBersih = $totalPendapatan - $totalPengeluaran;
+
         $daftarTahun = Transaction::selectRaw('YEAR(tanggal_transaksi) as tahun')->distinct()->orderBy('tahun', 'desc')->pluck('tahun');
         if ($daftarTahun->isEmpty()) {
             $daftarTahun = collect([date('Y')]);
         }
+
         return view('laporan.laba_rugi', compact(
             'totalPendapatan', 'pendapatanItems',
             'totalPengeluaran', 'pengeluaran',
