@@ -43,7 +43,13 @@
             <div class="px-2 pt-4 pb-1">
                 <span class="text-xs font-bold text-gray-400 hidden group-hover/sidebar:inline-block">DATA MASTER</span>
             </div>
-             <a href="{{ route('aset-tetap.index') }}" class="flex items-center gap-3 p-2 rounded-md transition {{ request()->routeIs('aset-tetap.*') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]' }}">
+            <!-- Tambahan Master Data -->
+            <a href="{{ route('master.index') }}"
+               class="flex items-center gap-3 p-2 rounded-md transition {{ request()->routeIs('master.*') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]' }}">
+                <i data-lucide="layers" class="w-5 h-5 shrink-0"></i>
+                <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Master Data</span>
+            </a>
+            <a href="{{ route('aset-tetap.index') }}" class="flex items-center gap-3 p-2 rounded-md transition {{ request()->routeIs('aset-tetap.*') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]' }}">
                 <i data-lucide="building" class="w-5 h-5 shrink-0"></i>
                 <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Aset & Modal</span>
             </a>
@@ -64,7 +70,7 @@
                 <i data-lucide="bar-chart-3" class="w-5 h-5 shrink-0"></i>
                 <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Laporan Laba Rugi</span>
             </a>
-             <a href="{{ route('laporan.neraca') }}" class="flex items-center gap-3 p-2 rounded-md transition {{ request()->routeIs('laporan.neraca') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]' }}">
+            <a href="{{ route('laporan.neraca') }}" class="flex items-center gap-3 p-2 rounded-md transition {{ request()->routeIs('laporan.neraca') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]' }}">
                 <i data-lucide="scale" class="w-5 h-5 shrink-0"></i>
                 <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Laporan Neraca</span>
             </a>

@@ -11,16 +11,28 @@ use App\Http\Controllers\PengadaanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\BarangController;
+use App\Http\Controllers\MasterController;
+use App\Http\Controllers\SupplierController;
 
 // Rute untuk autentikasi
 require __DIR__.'/auth.php';
 
 
-Route::get('/transaksi/fetch-from-api', [TransactionController::class, 'fetchFromApi'])->name('transaksi.fetchApi');
-Route::get('/barangs/fetch', [BarangController::class, 'fetchFromApi'])->name('barangs.fetchApi');
+    Route::get('/transaksi/fetch-from-api', [TransactionController::class, 'fetchFromApi'])->name('transaksi.fetchApi');
+    Route::get('/barangs/fetch', [BarangController::class, 'fetchFromApi'])->name('barangs.fetchApi');
 
 // Semua rute di bawah ini memerlukan login
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    Route::resource('suppliers', SupplierController::class);
+    Route::get('suppliers/{supplier}/barangs', [SupplierController::class,'barangs']) ->name('suppliers.barangs');
+    Route::get('master-data',[MasterController::class,'index'])->name('master.index');
+    Route::resource('barangs', BarangController::class);
+    Route::resource('suppliers', SupplierController::class)->only(['store','edit','update','destroy']);
+    Route::resource('barangs', BarangController::class)->only(['store','edit','update','destroy']); // atau lengkapkan sesuai kebutuhan
+
+
+
     
     // Rute untuk ekspor transaksi ke Excel
     Route::get('/transaksi/export-excel', [TransactionController::class, 'exportExcel'])->name('transaksi.exportExcel');
@@ -47,7 +59,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('aset-tetap', AsetTetapController::class);
     
     Route::get('transaksi/export-pdf', [TransactionController::class, 'exportPdf'])->name('transaksi.exportPdf');
-    Route::resource('transaksi', TransactionController::class)->except(['edit', 'update']);
+    Route::resource('transaksi', TransactionController::class);
     
     Route::get('beban/export-pdf', [BebanController::class, 'exportPdf'])->name('beban.exportPdf');
     Route::resource('beban', BebanController::class)->except(['show', 'edit', 'update']);

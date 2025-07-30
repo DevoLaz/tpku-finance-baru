@@ -1,14 +1,13 @@
 <x-app-layout>
     <div class="p-8">
-        <!-- Header -->
         <div class="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg p-6 mb-6 shadow-lg">
             <div class="flex justify-between items-center">
                 <div>
                     <h1 class="text-3xl font-bold text-white">Laporan Neraca</h1>
-                    <p class="text-indigo-100">Potret posisi keuangan perusahaan per tanggal {{ \Carbon\Carbon::parse($tanggalLaporan)->format('d F Y') }}</p>
+                    {{-- DIUBAH: Header disesuaikan dengan periode --}}
+                    <p class="text-indigo-100">Laporan untuk periode yang berakhir pada {{ \Carbon\Carbon::parse($tanggalLaporan)->format('d F Y') }}</p>
                 </div>
                 
-                <!-- Tombol Ekspor Dropdown -->
                 <div class="relative">
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">
@@ -22,12 +21,10 @@
                         </x-slot>
 
                         <x-slot name="content">
-                            <!-- PDF Export Link -->
                             <x-dropdown-link :href="route('laporan.neraca.exportPdf', request()->query())">
                                 <span>Ekspor PDF</span>
                             </x-dropdown-link>
 
-                            <!-- Excel Export Link -->
                             <x-dropdown-link :href="route('laporan.neraca.exportExcel', request()->query())">
                                 <span>Ekspor Excel</span>
                             </x-dropdown-link>
@@ -37,20 +34,34 @@
             </div>
         </div>
 
-        <!-- Filter -->
+        {{-- DIUBAH: Filter diubah menjadi Bulan dan Tahun --}}
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <form method="GET" action="{{ route('laporan.neraca') }}" class="flex items-end gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Tanggal Laporan</label>
-                    <input type="date" name="tanggal" value="{{ $tanggalLaporan }}" class="w-full px-4 py-2 rounded-lg border-gray-300">
+                    <label for="bulan" class="block text-sm font-medium text-gray-700 mb-2">Pilih Periode Bulan</label>
+                    <select name="bulan" id="bulan" class="w-full px-4 py-2 rounded-lg border-gray-300">
+                        @for ($m = 1; $m <= 12; $m++)
+                            <option value="{{ $m }}" {{ $bulan == $m ? 'selected' : '' }}>
+                                {{ \Carbon\Carbon::create()->month($m)->format('F') }}
+                            </option>
+                        @endfor
+                    </select>
                 </div>
-                <button type="submit" class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg">Tampilkan</button>
+                <div>
+                    <label for="tahun" class="block text-sm font-medium text-gray-700 mb-2">Pilih Periode Tahun</label>
+                    <select name="tahun" id="tahun" class="w-full px-4 py-2 rounded-lg border-gray-300">
+                        @for ($y = date('Y'); $y >= 2020; $y--)
+                            <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>
+                                {{ $y }}
+                            </option>
+                        @endfor
+                    </select>
+                </div>
+                <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">Tampilkan</button>
             </form>
         </div>
 
-        <!-- Konten Neraca -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- SISI ASET -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">ASET</h2>
                 <table class="w-full text-sm">
@@ -76,7 +87,6 @@
                 </table>
             </div>
 
-            <!-- SISI LIABILITAS & EKUITAS -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold text-gray-800 border-b-2 pb-2 mb-4">LIABILITAS & EKUITAS</h2>
                 <table class="w-full text-sm">
@@ -101,7 +111,6 @@
             </div>
         </div>
 
-        <!-- Check Balance -->
         <div class="mt-8 text-center">
             @if($totalAset > 0 || $totalLiabilitasEkuitas > 0)
                 @if(round($totalAset) == round($totalLiabilitasEkuitas))
@@ -112,7 +121,7 @@
                 @else
                     <span class="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-800 font-semibold rounded-full">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-                        Neraca Tidak Seimbang! Selisih: Rp {{ number_format(abs($totalAset - $totalLiabilitasEkuitas)) }}
+                        Neraca Tidak Seimbang! Selisih: Rp {{ number_format(abs($totalAset - $totalLiabilitasEkuitas), 0, ',', '.') }}
                     </span>
                 @endif
             @endif

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PengadaanController;
+use App\Http\Controllers\BarangController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,3 +16,4 @@ use App\Http\Controllers\PengadaanController;
 */
 
 Route::get('/pengadaan', [PengadaanController::class, 'apiIndex']);
+Route::get('/barangs', [BarangController::class, 'apiIndex']);

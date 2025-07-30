@@ -14,6 +14,8 @@ class Barang extends Model
      *
      * @var array<int, string>
      */
+    protected $guarded = []; 
+    protected $table = 'barangs';
     protected $fillable = [
         'kode_barang',
         'nama',
@@ -23,6 +25,14 @@ class Barang extends Model
         'jenis_kain', // Pastikan nama kolom ini sesuai dengan database Anda
         'harga_jual',
     ];
+
+
+    public function suppliers()
+{
+    return $this->belongsToMany(Supplier::class, 'barang_supplier')
+                ->withPivot('harga_beli')
+                ->withTimestamps();
+}
 
     /**
      * Get the category that owns the barang.

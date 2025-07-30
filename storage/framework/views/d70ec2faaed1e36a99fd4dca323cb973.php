@@ -43,7 +43,13 @@
             <div class="px-2 pt-4 pb-1">
                 <span class="text-xs font-bold text-gray-400 hidden group-hover/sidebar:inline-block">DATA MASTER</span>
             </div>
-             <a href="<?php echo e(route('aset-tetap.index')); ?>" class="flex items-center gap-3 p-2 rounded-md transition <?php echo e(request()->routeIs('aset-tetap.*') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]'); ?>">
+            <!-- Tambahan Master Data -->
+            <a href="<?php echo e(route('master.index')); ?>"
+               class="flex items-center gap-3 p-2 rounded-md transition <?php echo e(request()->routeIs('master.*') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]'); ?>">
+                <i data-lucide="layers" class="w-5 h-5 shrink-0"></i>
+                <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Master Data</span>
+            </a>
+            <a href="<?php echo e(route('aset-tetap.index')); ?>" class="flex items-center gap-3 p-2 rounded-md transition <?php echo e(request()->routeIs('aset-tetap.*') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]'); ?>">
                 <i data-lucide="building" class="w-5 h-5 shrink-0"></i>
                 <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Aset & Modal</span>
             </a>
@@ -64,7 +70,7 @@
                 <i data-lucide="bar-chart-3" class="w-5 h-5 shrink-0"></i>
                 <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Laporan Laba Rugi</span>
             </a>
-             <a href="<?php echo e(route('laporan.neraca')); ?>" class="flex items-center gap-3 p-2 rounded-md transition <?php echo e(request()->routeIs('laporan.neraca') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]'); ?>">
+            <a href="<?php echo e(route('laporan.neraca')); ?>" class="flex items-center gap-3 p-2 rounded-md transition <?php echo e(request()->routeIs('laporan.neraca') ? 'bg-[#246342] font-semibold' : 'hover:bg-[#246342]'); ?>">
                 <i data-lucide="scale" class="w-5 h-5 shrink-0"></i>
                 <span class="hidden group-hover/sidebar:inline-block whitespace-nowrap">Laporan Neraca</span>
             </a>
@@ -81,4 +87,5 @@
             </button>
         </form>
     </div>
-</aside><?php /**PATH C:\tpku-finance-baru\resources\views/layouts/sidebar.blade.php ENDPATH**/ ?>
+</aside>
+<?php /**PATH C:\tpku-finance-baru\resources\views/layouts/sidebar.blade.php ENDPATH**/ ?>

@@ -269,9 +269,23 @@ class LaporanController extends Controller
 
     public function neraca(Request $request)
     {
-        $tanggalLaporan = $request->input('tanggal', date('Y-m-d'));
-        $tanggalObj = Carbon::parse($tanggalLaporan)->endOfDay();
-        $kas = ArusKas::where('created_at', '<=', $tanggalObj)->sum(DB::raw('CASE WHEN tipe = "masuk" THEN jumlah ELSE -jumlah END'));
+        // ===================================================================
+        // ## Blok kode yang diubah untuk filter periode ##
+        // ===================================================================
+
+        // Mengambil bulan dan tahun dari request, atau default ke saat ini jika tidak ada.
+        $bulan = $request->input('bulan', now()->month);
+        $tahun = $request->input('tahun', now()->year);
+
+        // Menentukan tanggal laporan berdasarkan akhir bulan dari periode yang dipilih.
+        $tanggalObj = Carbon::create($tahun, $bulan)->endOfMonth()->endOfDay();
+        $tanggalLaporan = $tanggalObj->toDateString(); // Format 'Y-m-d'
+
+        // ===================================================================
+        // ## Blok kode perhitungan Anda yang sudah ada (TETAP SAMA) ##
+        // ===================================================================
+
+        $kas = ArusKas::where('tanggal', '<=', $tanggalLaporan)->sum(DB::raw('CASE WHEN tipe="masuk" THEN jumlah ELSE -jumlah END'));
         $asetTetapItems = AsetTetap::where('tanggal_perolehan', '<=', $tanggalObj)->get();
         $totalAkumulasiPenyusutan = 0;
         foreach ($asetTetapItems as $aset) {
@@ -296,10 +310,22 @@ class LaporanController extends Controller
         $totalEkuitas = $modalDisetor + $labaDitahan;
         $totalLiabilitasEkuitas = $totalLiabilitas + $totalEkuitas;
 
+        // ===================================================================
+        // ## Blok return view yang diubah (ditambahkan $bulan dan $tahun) ##
+        // ===================================================================
+
         return view('laporan.neraca', compact(
-            'tanggalLaporan', 'kas', 'asetFisikItems', 'totalAkumulasiPenyusutan', 'totalAset',
+            'tanggalLaporan', 
+            'bulan', // Variabel baru untuk view
+            'tahun', // Variabel baru untuk view
+            'kas', 
+            'asetFisikItems', 
+            'totalAkumulasiPenyusutan', 
+            'totalAset',
             'totalLiabilitas',
-            'modalDisetor', 'labaDitahan', 'totalEkuitas',
+            'modalDisetor', 
+            'labaDitahan', 
+            'totalEkuitas',
             'totalLiabilitasEkuitas'
         ));
     }

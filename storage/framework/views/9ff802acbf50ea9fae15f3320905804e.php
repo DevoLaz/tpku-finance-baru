@@ -25,7 +25,6 @@
                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
                         <span>Catat Penjualan</span>
                     </a>
-                    <!-- Tombol Ekspor Dropdown -->
                     <div class="relative">
                         <?php if (isset($component)) { $__componentOriginaldf8083d4a852c446488d8d384bbc7cbe = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginaldf8083d4a852c446488d8d384bbc7cbe = $attributes; } ?>
@@ -202,7 +201,7 @@
                                 <td class="py-3 px-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
                                         
-                                        <?php if(now()->startOfDay()->isBeforeOrEqualTo(\Carbon\Carbon::parse($transaction->tanggal_transaksi)->endOfMonth())): ?>
+                                        <?php if(\Carbon\Carbon::parse($transaction->tanggal_transaksi)->format('Y-m') == now()->format('Y-m')): ?>
                                             <button @click="openModal('<?php echo e($transaction->id); ?>')" class="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-100" title="Edit">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                             </button>
@@ -275,8 +274,7 @@
             <?php endif; ?>
         </div>
 
-        <!-- Modal Edit -->
-        <div x-show="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @keydown.escape.window="closeModal()">
+        <div x-show="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @keydown.escape.window="closeModal()" style="display: none;">
             <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl" @click.outside="closeModal()">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
                     <h2 class="text-xl font-bold">Edit Transaksi</h2>
@@ -402,13 +400,13 @@
                     }
                 })
                 .catch(error => {
-                     this.showNotification(error.message, 'error');
+                   this.showNotification(error.message, 'error');
                 });
             },
             updateTableRow(data) {
                 const row = document.querySelector(`#transaction-row-${data.id} > tr`);
                 if (row) {
-                    const tgl = new Date(data.tanggal_transaksi);
+                    const tgl = new Date(data.tanggal_transaksi + 'T00:00:00');
                     const options = { year: 'numeric', month: 'short', day: 'numeric' };
                     row.querySelector('.tanggal').textContent = tgl.toLocaleDateString('id-ID', options);
                     row.querySelector('.keterangan').textContent = data.keterangan;
@@ -424,8 +422,8 @@
             },
             showNotification(message, type = 'success') {
                 const notifDiv = document.getElementById('notification');
-                // PERBAIKAN: Hapus notifikasi session yang lama sebelum menampilkan yang baru
-                document.querySelectorAll('.session-notification').forEach(el => el.remove());
+                // Hapus notifikasi session yang lama sebelum menampilkan yang baru
+                document.querySelector('.session-notification')?.remove();
 
                 notifDiv.className = `p-4 rounded-lg text-white ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
                 notifDiv.textContent = message;
@@ -444,5 +442,4 @@
 <?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
 <?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
 <?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
-<?php endif; ?>
-<?php /**PATH C:\tpku-finance-baru\resources\views/transaksi/index.blade.php ENDPATH**/ ?>
+<?php endif; ?><?php /**PATH C:\tpku-finance-baru\resources\views/transaksi/index.blade.php ENDPATH**/ ?>
