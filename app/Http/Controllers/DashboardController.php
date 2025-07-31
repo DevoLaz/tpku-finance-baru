@@ -33,23 +33,49 @@ class DashboardController extends Controller
         $totalAset = AsetTetap::where('masa_manfaat', '>', 0)->get()->sum('nilai_buku');
         $totalKaryawan = Karyawan::where('aktif', true)->count();
 
-        // Pendapatan & Pengeluaran (Bulan Berjalan)
+        // =========================================================================
+        //         PERHITUNGAN LABA RUGI YANG SUDAH DISINKRONKAN
+        // =========================================================================
+
+        // 1. Ambil Pendapatan
         $pendapatanBulanIni = Transaction::whereBetween('tanggal_transaksi', [$startOfMonth, $endOfMonth])->sum('total_penjualan');
+
+        // 2. Ambil Pengeluaran dengan LOGIKA YANG SAMA seperti Laporan Laba Rugi
+        // 2a. Ambil HPP (HANYA dari pengadaan yang BUKAN aset)
+        $pengeluaranHpp = Pengadaan::whereBetween('tanggal_pembelian', [$startOfMonth, $endOfMonth])
+            ->whereHas('barang.kategori', function ($query) {
+                $query->where('nama', '!=', 'Aset Tetap');
+            })->sum('total_harga');
+            
+        // 2b. Ambil Beban Gaji
         $pengeluaranGaji = Gaji::whereBetween('created_at', [$startOfMonth, $endOfMonth])->sum('gaji_bersih');
-        $pengeluaranPengadaan = Pengadaan::whereBetween('tanggal_pembelian', [$startOfMonth, $endOfMonth])->sum('total_harga');
-        $pengeluaranBeban = Beban::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->sum('jumlah');
-        $totalPengeluaranBulanIni = $pengeluaranGaji + $pengeluaranPengadaan + $pengeluaranBeban;
+
+        // 2c. Ambil Beban Operasional Lainnya
+        $pengeluaranBebanLain = Beban::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->sum('jumlah');
+
+        // 2d. Hitung Beban Penyusutan
+        $asetFisik = AsetTetap::where('masa_manfaat', '>', 0)->get();
+        $bebanPenyusutanBulanIni = 0;
+        foreach ($asetFisik as $aset) {
+            if ($aset->masa_manfaat > 0) {
+                // Rumus: (Harga Perolehan - Nilai Residu) / (Masa Manfaat dalam Tahun * 12 Bulan)
+                $penyusutanPerBulan = ($aset->harga_perolehan - $aset->nilai_residu) / ($aset->masa_manfaat * 12);
+                $bebanPenyusutanBulanIni += $penyusutanPerBulan;
+            }
+        }
+
+        // 3. Jumlahkan SEMUA komponen pengeluaran
+        $totalPengeluaranBulanIni = $pengeluaranHpp + $pengeluaranGaji + $pengeluaranBebanLain + $bebanPenyusutanBulanIni;
         
+        // 4. Hitung Laba Rugi yang sudah akurat
         $labaRugiBulanIni = $pendapatanBulanIni - $totalPengeluaranBulanIni;
         
-        // ===== DATA UNTUK WIDGET DINAMIS =====
+        // ===== DATA UNTUK WIDGET DINAMIS (akan menggunakan data L/R yang baru) =====
 
         // 1. Margin Laba Bersih (Net Profit Margin)
-        // Rumus: (Laba Bersih / Pendapatan) * 100%
         $marjinLabaBersih = ($pendapatanBulanIni > 0) ? ($labaRugiBulanIni / $pendapatanBulanIni) * 100 : 0;
 
         // 2. Efisiensi Operasional
-        // Efisiensi = (Total Pengeluaran / Total Pendapatan) * 100%
         $efisiensiOperasional = ($pendapatanBulanIni > 0) ? ($totalPengeluaranBulanIni / $pendapatanBulanIni) * 100 : 0;
 
         // 3. Aktivitas Hari Ini
@@ -77,10 +103,10 @@ class DashboardController extends Controller
             ];
         });
 
-        // 2. Grafik Komposisi Pengeluaran (Bulan Berjalan)
+        // 2. Grafik Komposisi Pengeluaran (Bulan Berjalan) - Diperbarui
         $pengeluaranChart = [
-            'labels' => ['Gaji', 'Pengadaan', 'Beban Operasional'],
-            'data' => [$pengeluaranGaji, $pengeluaranPengadaan, $pengeluaranBeban],
+            'labels' => ['HPP', 'Gaji', 'Beban Lainnya', 'Penyusutan'],
+            'data' => [$pengeluaranHpp, $pengeluaranGaji, $pengeluaranBebanLain, $bebanPenyusutanBulanIni],
         ];
 
         // ===== DATA UNTUK TABEL TRANSAKSI TERBARU =====
